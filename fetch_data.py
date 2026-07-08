@@ -2,23 +2,29 @@
 PierBite.com — Live Data Fetcher
 ==================================================================
 What this file does:
-  Every time it runs, it downloads free public weather-buoy readings
-  from NOAA (the National Data Buoy Center) for the stations PierBite
-  has confirmed, and saves the results into a file called data.json
-  in this same repository.
+  Every time it runs, it downloads free public data from two
+  different NOAA/NWS sources and saves the results into a file
+  called data.json in this same repository:
 
-  No password, API key, or paid account is required. NOAA publishes
-  these text files openly for anyone to read.
+  1. NDBC BUOYS — direct real-time sensor readings, but only exist
+     at a handful of physical locations on the lake.
 
-Stations currently wired up:
+  2. NWS MARINE ZONE FORECASTS + ALERTS — official government
+     forecasts and safety advisories that exist for EVERY stretch
+     of shoreline, whether or not a buoy is nearby. This is real,
+     named, dated forecast data — never a guess.
+
+  No password, API key, or paid account is required for either
+  source. Both are published openly by the U.S. government.
+
+Stations currently wired up (direct buoy readings):
   45210  — Two Rivers area buoy   (water temp, wave height)
   SGNW3  — Sheboygan station      (wind)
   KWNW3  — Kewaunee station       (wind)
   45002  — Washington Island area (wind, wave height, water temp)
 
-Any station/field NOT listed here simply won't appear in data.json.
-The website should keep using its existing sample numbers for
-anything missing, until more stations are added later.
+Marine zones currently wired up (official forecasts + alerts):
+  LMZ543 — "Two Rivers to Sheboygan WI" — covers the Two Rivers pier
 
 This script only uses Python's built-in tools — nothing extra needs
 to be installed for it to run.
@@ -26,11 +32,12 @@ to be installed for it to run.
 """
 
 import json
+import re
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
 # ---------------------------------------------------------------
-# 1. Which stations to check, and what each one measures.
+# 1. Buoy stations — direct sensor readings.
 # ---------------------------------------------------------------
 STATIONS = {
     "45210": {"label": "Two Rivers area buoy (Rawley Point East)"},
@@ -40,6 +47,17 @@ STATIONS = {
 }
 
 NDBC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
+
+# ---------------------------------------------------------------
+# 1b. Marine forecast zones — official NWS forecasts + alerts.
+# ---------------------------------------------------------------
+ZONES = {
+    "LMZ543": {"label": "Two Rivers to Sheboygan WI"},
+}
+
+NWS_ZONE_FORECAST_URL = "https://api.weather.gov/zones/forecast/{zone}/forecast"
+NWS_ALERTS_URL = "https://api.weather.gov/alerts/active?zone={zone}"
+NWS_USER_AGENT = "PierBiteDotCom (contact: pierbite project owner)"
 
 # 16-point compass, in order, starting at North.
 COMPASS = [
@@ -67,7 +85,7 @@ def to_float(value):
 
 
 def fetch_station(station_id):
-    """Download and read one station's text file from NOAA."""
+    """Download and read one buoy's text file from NOAA."""
     url = NDBC_URL.format(station=station_id)
     with urllib.request.urlopen(url, timeout=30) as response:
         raw_text = response.read().decode("utf-8", errors="ignore")
@@ -96,8 +114,7 @@ def fetch_station(station_id):
             "water_temp_c": to_float(parts[14]),
         })
 
-    # NOAA lists newest-first; flip so oldest is first, newest is last.
-    readings.reverse()
+    readings.reverse()  # oldest first, newest last
     return readings
 
 
@@ -153,20 +170,152 @@ def summarize_station(station_id, readings):
     }
 
 
+def nws_get(url):
+    """Make a request to the NWS API. Requires a User-Agent header."""
+    req = urllib.request.Request(url, headers={
+        "User-Agent": NWS_USER_AGENT,
+        "Accept": "application/geo+json",
+    })
+    with urllib.request.urlopen(req, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+DIR_WORDS = {
+    "north": "N", "northeast": "NE", "east": "E", "southeast": "SE",
+    "south": "S", "southwest": "SW", "west": "W", "northwest": "NW",
+}
+
+
+def split_wind_and_wave(text):
+    """Marine forecast sentences blend wind and wave info together in one
+    block of prose (e.g. 'Northeast winds 10 to 15 kt. Waves 1 to 3 ft.').
+    Split at the word 'Waves' so each half can be parsed on its own,
+    without wave numbers leaking into the wind range or vice versa."""
+    if not text:
+        return "", ""
+    parts = re.split(r"(?=[Ww]aves?\s)", text, maxsplit=1)
+    wind_part = parts[0]
+    wave_part = parts[1] if len(parts) > 1 else ""
+    return wind_part, wave_part
+
+
+def parse_wind_direction(wind_part):
+    """Pull the first compass direction mentioned before the word 'wind(s)'."""
+    m = re.search(
+        r"\b(north|northeast|east|southeast|south|southwest|west|northwest)\s+winds?\b",
+        wind_part, re.IGNORECASE,
+    )
+    if not m:
+        return None
+    return DIR_WORDS.get(m.group(1).lower())
+
+
+def parse_wind_speed(wind_part):
+    """Turn '10 to 15 kt' into a (low_mph, high_mph) range."""
+    if not wind_part:
+        return (None, None)
+    nums = [float(n) for n in re.findall(r"\d+(?:\.\d+)?", wind_part)]
+    if not nums:
+        return (None, None)
+    is_knots = "kt" in wind_part.lower() or "knot" in wind_part.lower()
+    factor = 1.15078 if is_knots else 1.0
+    nums = [round(n * factor, 1) for n in nums]
+    return (min(nums), max(nums))
+
+
+def parse_wave_height(wave_part):
+    """Pull a wave height range in feet out of the wave portion of a
+    forecast sentence. Handles 'Waves 1 to 3 ft', 'Waves around 2 ft',
+    'Waves 1 foot or less', 'Waves calm to 1 foot'."""
+    if not wave_part:
+        return (None, None)
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(?:to|-)\s*(\d+(?:\.\d+)?)\s*f(?:oo|ee)?t", wave_part)
+    if m:
+        return (float(m.group(1)), float(m.group(2)))
+    m = re.search(r"around\s+(\d+(?:\.\d+)?)\s*f(?:oo|ee)?t", wave_part)
+    if m:
+        v = float(m.group(1))
+        return (v, v)
+    m = re.search(r"(\d+(?:\.\d+)?)\s*f(?:oo|ee)?t\s+or\s+less", wave_part)
+    if m:
+        return (0.0, float(m.group(1)))
+    m = re.search(r"calm\s+to\s+(\d+(?:\.\d+)?)\s*f(?:oo|ee)?t", wave_part)
+    if m:
+        return (0.0, float(m.group(1)))
+    return (None, None)
+
+
+def fetch_zone_forecast(zone_id):
+    """Get the official NWS marine forecast for one shoreline zone."""
+    url = NWS_ZONE_FORECAST_URL.format(zone=zone_id)
+    data = nws_get(url)
+    periods = data.get("properties", {}).get("periods", [])
+    if not periods:
+        return {"available": False}
+
+    current = periods[0]
+    detailed_text = current.get("detailedForecast", "") or ""
+    wind_part, wave_part = split_wind_and_wave(detailed_text)
+
+    return {
+        "available": True,
+        "period_name": current.get("name"),
+        "wind_dir": parse_wind_direction(wind_part),
+        "wind_mph_low": parse_wind_speed(wind_part)[0],
+        "wind_mph_high": parse_wind_speed(wind_part)[1],
+        "wave_ft_low": parse_wave_height(wave_part)[0],
+        "wave_ft_high": parse_wave_height(wave_part)[1],
+        "detailed_text": detailed_text,
+        "issued_at_utc": data.get("properties", {}).get("updateTime"),
+    }
+
+
+def fetch_zone_alerts(zone_id):
+    """Check for any real, currently-active marine advisory in this zone."""
+    url = NWS_ALERTS_URL.format(zone=zone_id)
+    data = nws_get(url)
+    features = data.get("features", [])
+    if not features:
+        return {"active": False}
+
+    alert = features[0]["properties"]
+    return {
+        "active": True,
+        "headline": alert.get("headline"),
+        "event": alert.get("event"),
+        "severity": alert.get("severity"),
+        "effective_utc": alert.get("effective"),
+        "expires_utc": alert.get("expires"),
+    }
+
+
 def main():
     output = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "stations": {},
+        "zones": {},
     }
 
     for station_id, meta in STATIONS.items():
         try:
             readings = fetch_station(station_id)
             summary = summarize_station(station_id, readings)
-        except Exception as err:  # keep going even if one station fails
+        except Exception as err:
             summary = {"available": False, "error": str(err)}
         summary["label"] = meta["label"]
         output["stations"][station_id] = summary
+
+    for zone_id, meta in ZONES.items():
+        zone_result = {"label": meta["label"]}
+        try:
+            zone_result["forecast"] = fetch_zone_forecast(zone_id)
+        except Exception as err:
+            zone_result["forecast"] = {"available": False, "error": str(err)}
+        try:
+            zone_result["alert"] = fetch_zone_alerts(zone_id)
+        except Exception as err:
+            zone_result["alert"] = {"active": False, "error": str(err)}
+        output["zones"][zone_id] = zone_result
 
     with open("data.json", "w") as f:
         json.dump(output, f, indent=2)
