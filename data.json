@@ -1,24 +1,24 @@
 {
-  "generated_at_utc": "2026-07-08T22:43:20.898560+00:00",
+  "generated_at_utc": "2026-07-08T23:28:26.572757+00:00",
   "stations": {
     "45210": {
       "available": true,
-      "observed_at_utc": "2026-07-08T21:56:00+00:00",
+      "observed_at_utc": "2026-07-08T22:56:00+00:00",
       "wind_dir": null,
       "wind_mph": null,
       "gust_mph": null,
       "wave_ft": 0.66,
-      "water_temp_f": 68.5,
-      "water_change_24h_f": -1.7,
-      "water_change_72h_f": 4.1,
+      "water_temp_f": 68.4,
+      "water_change_24h_f": -1.6,
+      "water_change_72h_f": 4.0,
       "label": "Two Rivers area buoy (Rawley Point East)"
     },
     "SGNW3": {
       "available": true,
-      "observed_at_utc": "2026-07-08T22:00:00+00:00",
-      "wind_dir": "S",
-      "wind_mph": 18.3,
-      "gust_mph": 20.8,
+      "observed_at_utc": "2026-07-08T23:00:00+00:00",
+      "wind_dir": "NE",
+      "wind_mph": 17.2,
+      "gust_mph": 19.7,
       "wave_ft": null,
       "water_temp_f": null,
       "water_change_24h_f": null,
@@ -27,10 +27,10 @@
     },
     "KWNW3": {
       "available": true,
-      "observed_at_utc": "2026-07-08T22:00:00+00:00",
-      "wind_dir": "NNW",
-      "wind_mph": 3.4,
-      "gust_mph": 6.9,
+      "observed_at_utc": "2026-07-08T22:48:00+00:00",
+      "wind_dir": "ENE",
+      "wind_mph": 2.2,
+      "gust_mph": 4.7,
       "wave_ft": null,
       "water_temp_f": null,
       "water_change_24h_f": null,
@@ -39,15 +39,32 @@
     },
     "45002": {
       "available": true,
-      "observed_at_utc": "2026-07-08T22:10:00+00:00",
-      "wind_dir": "S",
-      "wind_mph": 8.9,
-      "gust_mph": 11.2,
-      "wave_ft": 0.98,
-      "water_temp_f": 68.7,
-      "water_change_24h_f": 0.3,
-      "water_change_72h_f": 2.9,
+      "observed_at_utc": "2026-07-08T23:00:00+00:00",
+      "wind_dir": "SSW",
+      "wind_mph": 4.5,
+      "gust_mph": 6.7,
+      "wave_ft": null,
+      "water_temp_f": 68.5,
+      "water_change_24h_f": 0.1,
+      "water_change_72h_f": 2.7,
       "label": "Washington Island area buoy"
+    }
+  },
+  "zones": {
+    "LMZ543": {
+      "label": "Two Rivers to Sheboygan WI",
+      "forecast": {
+        "available": false,
+        "error": "HTTP Error 404: Not Found"
+      },
+      "alert": {
+        "active": true,
+        "headline": "Severe Thunderstorm Watch issued July 8 at 2:01PM CDT until July 8 at 10:00PM CDT by NWS Green Bay WI",
+        "event": "Severe Thunderstorm Watch",
+        "severity": "Severe",
+        "effective_utc": "2026-07-08T14:01:00-05:00",
+        "expires_utc": "2026-07-08T22:00:00-05:00"
+      }
     }
   }
 }
