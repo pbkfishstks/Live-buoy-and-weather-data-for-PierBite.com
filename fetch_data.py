@@ -55,7 +55,7 @@ ZONES = {
     "LMZ543": {"label": "Two Rivers to Sheboygan WI"},
 }
 
-NWS_ZONE_FORECAST_URL = "https://api.weather.gov/zones/forecast/{zone}/forecast"
+NWS_ZONE_TEXT_URL = "https://tgftp.nws.noaa.gov/data/forecasts/marine/near_shore/lm/{zone_lower}.txt"
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active?zone={zone}"
 NWS_USER_AGENT = "PierBiteDotCom (contact: pierbite project owner)"
 
@@ -199,8 +199,16 @@ def split_wind_and_wave(text):
     return wind_part, wave_part
 
 
+VALID_ABBR = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"}
+
+
 def parse_wind_direction(wind_part):
-    """Pull the first compass direction mentioned before the word 'wind(s)'."""
+    """Pull the wind direction from real NWS marine text, which sometimes
+    uses short form ('SE wind 5 to 10 kts') and sometimes spelled-out
+    ('Northeast winds 10 to 15 kt')."""
+    m = re.search(r"\b([NSEW]{1,2})\s+winds?\b", wind_part)
+    if m and m.group(1) in VALID_ABBR:
+        return m.group(1)
     m = re.search(
         r"\b(north|northeast|east|southeast|south|southwest|west|northwest)\s+winds?\b",
         wind_part, re.IGNORECASE,
@@ -245,28 +253,39 @@ def parse_wave_height(wave_part):
     return (None, None)
 
 
+def parse_zone_periods(raw_text):
+    """Marine zone bulletins look like:
+    .TODAY...NW wind 10 to 15 kts... Waves 2 to 4 ft... .TONIGHT...W wind...
+    Split on the '.PERIODNAME...' markers into [(period_name, text), ...]."""
+    pattern = r"\.([A-Z][A-Z0-9 /]{2,30}?)\.\.\.(.*?)(?=\.[A-Z][A-Z0-9 /]{2,30}?\.\.\.|\$\$|$)"
+    matches = re.findall(pattern, raw_text, re.DOTALL)
+    return [(name.strip(), re.sub(r"\s+", " ", text.strip())) for name, text in matches]
+
+
 def fetch_zone_forecast(zone_id):
-    """Get the official NWS marine forecast for one shoreline zone."""
-    url = NWS_ZONE_FORECAST_URL.format(zone=zone_id)
-    data = nws_get(url)
-    periods = data.get("properties", {}).get("periods", [])
+    """Get the official NWS marine forecast text bulletin for one shoreline
+    zone, and read the current (first) forecast period from it."""
+    url = NWS_ZONE_TEXT_URL.format(zone_lower=zone_id.lower())
+    req = urllib.request.Request(url, headers={"User-Agent": NWS_USER_AGENT})
+    with urllib.request.urlopen(req, timeout=30) as response:
+        raw_text = response.read().decode("utf-8", errors="ignore")
+
+    periods = parse_zone_periods(raw_text)
     if not periods:
         return {"available": False}
 
-    current = periods[0]
-    detailed_text = current.get("detailedForecast", "") or ""
-    wind_part, wave_part = split_wind_and_wave(detailed_text)
+    period_name, period_text = periods[0]
+    wind_part, wave_part = split_wind_and_wave(period_text)
 
     return {
         "available": True,
-        "period_name": current.get("name"),
+        "period_name": period_name,
         "wind_dir": parse_wind_direction(wind_part),
         "wind_mph_low": parse_wind_speed(wind_part)[0],
         "wind_mph_high": parse_wind_speed(wind_part)[1],
         "wave_ft_low": parse_wave_height(wave_part)[0],
         "wave_ft_high": parse_wave_height(wave_part)[1],
-        "detailed_text": detailed_text,
-        "issued_at_utc": data.get("properties", {}).get("updateTime"),
+        "detailed_text": period_text,
     }
 
 
