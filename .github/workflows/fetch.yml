@@ -1,0 +1,43 @@
+# ==================================================================
+# PierBite.com — Automatic Data Refresh Schedule
+# ==================================================================
+# This file tells GitHub: "Run fetch_data.py once an hour, forever,
+# for free, without anyone needing to click anything."
+#
+# This file must be placed at exactly this path in the repository:
+#   .github/workflows/fetch.yml
+# (GitHub only looks for schedule files in that exact folder.)
+# ==================================================================
+
+name: Fetch PierBite Live Data
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # every hour, on the hour
+  workflow_dispatch:        # also lets you click "Run workflow" manually to test
+
+permissions:
+  contents: write            # allows the robot to save data.json back to the repo
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the repository files
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run the fetch script
+        run: python fetch_data.py
+
+      - name: Save the updated data file
+        run: |
+          git config user.name "PierBite Data Bot"
+          git config user.email "actions@github.com"
+          git add data.json
+          git diff --quiet --cached || git commit -m "Update live data"
+          git push
