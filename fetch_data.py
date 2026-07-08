@@ -49,6 +49,20 @@ STATIONS = {
 NDBC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
 
 # ---------------------------------------------------------------
+# 1c. Airport wind stations — real HOURLY HISTORY, not just current.
+#     Great Lakes buoys don't measure wind, so for genuine 72-hour
+#     wind trends we use the nearest continuously-reporting airport
+#     weather station instead. This is real, timestamped data — not
+#     a guess — but it is measured a few miles from the pier, not
+#     right at the water, so it's labeled honestly on the page.
+# ---------------------------------------------------------------
+STATION_HISTORY = {
+    "KMTW": {"label": "Manitowoc Airport (nearest continuously-reporting wind station)"},
+}
+
+NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
+
+# ---------------------------------------------------------------
 # 1b. Marine forecast zones — official NWS forecasts + alerts.
 # ---------------------------------------------------------------
 ZONES = {
@@ -289,6 +303,59 @@ def fetch_zone_forecast(zone_id):
     }
 
 
+def fetch_station_history(station_id):
+    """Get real, timestamped wind readings for the last 72 hours from a
+    continuously-reporting airport weather station (ASOS). Returns a
+    compact hour-by-hour compass direction list plus the current reading,
+    all built from real observations — never estimated."""
+    url = NWS_STATION_OBS_URL.format(station=station_id)
+    data = nws_get(url)
+    features = data.get("features", [])
+
+    readings = []
+    for feat in features:
+        props = feat.get("properties", {})
+        ws = (props.get("windSpeed") or {}).get("value")
+        wd = (props.get("windDirection") or {}).get("value")
+        ts = props.get("timestamp")
+        if ws is None or wd is None or ts is None:
+            continue
+        try:
+            when = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        readings.append({
+            "time": when,
+            "wind_mph": round(ws * 0.621371, 1),  # station reports km/h
+            "wind_dir": degrees_to_compass(wd),
+        })
+
+    if not readings:
+        return {"available": False}
+
+    readings.sort(key=lambda r: r["time"])
+    latest = readings[-1]
+    cutoff = latest["time"] - timedelta(hours=72)
+    recent_72h = [r for r in readings if r["time"] >= cutoff]
+
+    hourly = [
+        {
+            "hours_ago": round((latest["time"] - r["time"]).total_seconds() / 3600),
+            "dir": r["wind_dir"],
+            "mph": r["wind_mph"],
+        }
+        for r in recent_72h
+    ]
+
+    return {
+        "available": True,
+        "observed_at_utc": latest["time"].isoformat(),
+        "current_wind_dir": latest["wind_dir"],
+        "current_wind_mph": latest["wind_mph"],
+        "hourly_72h": hourly,
+    }
+
+
 def fetch_zone_alerts(zone_id):
     """Check for any real, currently-active marine advisory in this zone."""
     url = NWS_ALERTS_URL.format(zone=zone_id)
@@ -313,6 +380,7 @@ def main():
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "stations": {},
         "zones": {},
+        "station_history": {},
     }
 
     for station_id, meta in STATIONS.items():
@@ -323,6 +391,14 @@ def main():
             summary = {"available": False, "error": str(err)}
         summary["label"] = meta["label"]
         output["stations"][station_id] = summary
+
+    for station_id, meta in STATION_HISTORY.items():
+        try:
+            history = fetch_station_history(station_id)
+        except Exception as err:
+            history = {"available": False, "error": str(err)}
+        history["label"] = meta["label"]
+        output["station_history"][station_id] = history
 
     for zone_id, meta in ZONES.items():
         zone_result = {"label": meta["label"]}
