@@ -34,6 +34,8 @@ Stations currently wired up (direct buoy readings):
 
 Marine zones currently wired up (official forecasts + alerts):
   LMZ543 — "Two Rivers to Sheboygan WI" — covers the Two Rivers pier
+  LMZ541 — "Rock Island Passage to Sturgeon Bay WI" — covers the
+           Washington Island pier
 
 GLSEA satellite water-temp points currently wired up:
   manitowoc — Manitowoc harbor mouth. Manitowoc has no NDBC buoy at
@@ -82,6 +84,7 @@ NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
 # ---------------------------------------------------------------
 ZONES = {
     "LMZ543": {"label": "Two Rivers to Sheboygan WI"},
+    "LMZ541": {"label": "Rock Island Passage to Sturgeon Bay WI"},
 }
 
 NWS_ZONE_TEXT_URL = "https://tgftp.nws.noaa.gov/data/forecasts/marine/near_shore/lm/{zone_lower}.txt"
