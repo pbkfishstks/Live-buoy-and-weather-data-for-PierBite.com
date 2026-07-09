@@ -58,6 +58,7 @@ NDBC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
 # ---------------------------------------------------------------
 STATION_HISTORY = {
     "KMTW": {"label": "Manitowoc Airport (nearest continuously-reporting wind station)"},
+    "K2P2": {"label": "Washington Island Airport (automated wind station)"},
 }
 
 NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
