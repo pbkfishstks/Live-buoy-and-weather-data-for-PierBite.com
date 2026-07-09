@@ -304,15 +304,23 @@ def fetch_zone_forecast(zone_id):
 
 
 def fetch_station_history(station_id):
-    """Get real, timestamped wind readings for the last 72 hours from a
-    continuously-reporting airport weather station (ASOS). Returns a
-    compact hour-by-hour compass direction list plus the current reading,
-    all built from real observations — never estimated."""
-    url = NWS_STATION_OBS_URL.format(station=station_id)
+    """Get real, timestamped wind readings from a continuously-reporting
+    airport weather station (ASOS). Busy stations like this one report
+    every 5 minutes, and the API caps how many raw records it sends back
+    per request, so we can't always guarantee a full 72 hours — this
+    function is honest about whatever real window it actually receives,
+    rather than assuming it always got the full 72.
+
+    It also downsamples to one clean reading per hour (nearest actual
+    observation to each hour mark), instead of keeping every 5-minute
+    reading, which would otherwise bloat the file with near-duplicates."""
+    start_time = datetime.now(timezone.utc) - timedelta(hours=73)
+    start_param = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    url = NWS_STATION_OBS_URL.format(station=station_id) + "?start=" + start_param + "&limit=500"
     data = nws_get(url)
     features = data.get("features", [])
 
-    readings = []
+    raw = []
     for feat in features:
         props = feat.get("properties", {})
         ws = (props.get("windSpeed") or {}).get("value")
@@ -324,35 +332,37 @@ def fetch_station_history(station_id):
             when = datetime.fromisoformat(ts.replace("Z", "+00:00"))
         except ValueError:
             continue
-        readings.append({
+        raw.append({
             "time": when,
             "wind_mph": round(ws * 0.621371, 1),  # station reports km/h
             "wind_dir": degrees_to_compass(wd),
         })
 
-    if not readings:
+    if not raw:
         return {"available": False}
 
-    readings.sort(key=lambda r: r["time"])
-    latest = readings[-1]
-    cutoff = latest["time"] - timedelta(hours=72)
-    recent_72h = [r for r in readings if r["time"] >= cutoff]
+    raw.sort(key=lambda r: r["time"])
+    latest = raw[-1]
+    earliest = raw[0]
+    actual_hours_covered = round((latest["time"] - earliest["time"]).total_seconds() / 3600)
 
-    hourly = [
-        {
-            "hours_ago": round((latest["time"] - r["time"]).total_seconds() / 3600),
-            "dir": r["wind_dir"],
-            "mph": r["wind_mph"],
-        }
-        for r in recent_72h
-    ]
+    # Downsample: for each whole hour back from now, keep the single
+    # real reading closest to that hour mark (skip hours with no data).
+    hourly = []
+    max_hours = min(actual_hours_covered, 72)
+    for h in range(max_hours, -1, -1):
+        target = latest["time"] - timedelta(hours=h)
+        closest = min(raw, key=lambda r: abs((r["time"] - target).total_seconds()))
+        if abs((closest["time"] - target).total_seconds()) <= 1800:  # within 30 min
+            hourly.append({"hours_ago": h, "dir": closest["wind_dir"], "mph": closest["wind_mph"]})
 
     return {
         "available": True,
         "observed_at_utc": latest["time"].isoformat(),
         "current_wind_dir": latest["wind_dir"],
         "current_wind_mph": latest["wind_mph"],
-        "hourly_72h": hourly,
+        "actual_hours_covered": actual_hours_covered,
+        "hourly": hourly,
     }
 
 
