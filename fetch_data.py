@@ -2,7 +2,7 @@
 PierBite.com — Live Data Fetcher
 ==================================================================
 What this file does:
-  Every time it runs, it downloads free public data from two
+  Every time it runs, it downloads free public data from three
   different NOAA/NWS sources and saves the results into a file
   called data.json in this same repository:
 
@@ -14,17 +14,31 @@ What this file does:
      of shoreline, whether or not a buoy is nearby. This is real,
      named, dated forecast data — never a guess.
 
-  No password, API key, or paid account is required for either
-  source. Both are published openly by the U.S. government.
+  3. GLSEA SATELLITE WATER TEMPERATURE — a NOAA satellite-based
+     picture of the lake surface, used ONLY as a fallback for
+     piers that have no real buoy nearby (starting with
+     Manitowoc). This feed has been observed to sometimes lag by
+     weeks, so every reading is checked for freshness before it's
+     used — see GLSEA_MAX_AGE_DAYS below. A stale reading is never
+     shown as if it were current.
+
+  No password, API key, or paid account is required for any of
+  these sources. All are published openly by the U.S. government.
 
 Stations currently wired up (direct buoy readings):
   45210  — Two Rivers area buoy   (water temp, wave height)
-  SGNW3  — Sheboygan station      (wind)
-  KWNW3  — Kewaunee station       (wind)
+  SGNW3  — Sheboygan station      (wind only — this station does
+                                    not measure water temp or waves)
+  KWNW3  — Kewaunee station       (wind only — same as above)
   45002  — Washington Island area (wind, wave height, water temp)
 
 Marine zones currently wired up (official forecasts + alerts):
   LMZ543 — "Two Rivers to Sheboygan WI" — covers the Two Rivers pier
+
+GLSEA satellite water-temp points currently wired up:
+  manitowoc — Manitowoc harbor mouth. Manitowoc has no NDBC buoy at
+              all, so this is its only real water-temperature source
+              right now.
 
 This script only uses Python's built-in tools — nothing extra needs
 to be installed for it to run.
@@ -73,6 +87,26 @@ ZONES = {
 NWS_ZONE_TEXT_URL = "https://tgftp.nws.noaa.gov/data/forecasts/marine/near_shore/lm/{zone_lower}.txt"
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active?zone={zone}"
 NWS_USER_AGENT = "PierBiteDotCom (contact: pierbite project owner)"
+
+# ---------------------------------------------------------------
+# 1d. GLSEA satellite water temperature — fallback for piers with
+#     no real buoy. See the module docstring above for details on
+#     the freshness check.
+# ---------------------------------------------------------------
+GLSEA_POINTS = {
+    "manitowoc": {
+        "lat": 44.0955,
+        "lon": -87.6608,
+        "label": "Manitowoc harbor mouth (satellite estimate — GLSEA; no buoy exists here)",
+    },
+}
+
+GLSEA_URL_TEMPLATE = (
+    "https://apps.glerl.noaa.gov/erddap/griddap/GLSEA_ACSPO_GCS.json"
+    "?sst[(last)][({lat}):({lat})][({lon}):({lon})]"
+)
+GLSEA_USER_AGENT = "PierBiteDotCom (contact: pierbite project owner)"
+GLSEA_MAX_AGE_DAYS = 5  # if the newest satellite reading is older than this, treat it as unavailable
 
 # 16-point compass, in order, starting at North.
 COMPASS = [
@@ -386,12 +420,55 @@ def fetch_zone_alerts(zone_id):
     }
 
 
+def fetch_glsea_point(lat, lon):
+    """Ask NOAA's GLSEA satellite dataset for the most recent surface
+    water temperature at one specific point on the lake (about a
+    1.5 km grid square). This is a real satellite reading, not a
+    guess — but the feed has been observed to sometimes lag by
+    weeks. So every reading's age is checked here before it's ever
+    handed back. If it's older than GLSEA_MAX_AGE_DAYS, this
+    function returns available: False instead of a stale number,
+    the same honest pattern used elsewhere in this file for missing
+    marine zones."""
+    url = GLSEA_URL_TEMPLATE.format(lat=lat, lon=lon)
+    req = urllib.request.Request(url, headers={"User-Agent": GLSEA_USER_AGENT})
+    with urllib.request.urlopen(req, timeout=30) as response:
+        data = json.loads(response.read().decode("utf-8"))
+
+    rows = data.get("table", {}).get("rows", [])
+    if not rows:
+        return {"available": False, "reason": "no data returned"}
+
+    time_str, row_lat, row_lon, sst_c = rows[0]
+    if sst_c is None:
+        return {"available": False, "reason": "no reading at this point (likely cloud cover)"}
+
+    observed = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+    age_days = (datetime.now(timezone.utc) - observed).total_seconds() / 86400
+
+    if age_days > GLSEA_MAX_AGE_DAYS:
+        return {
+            "available": False,
+            "reason": f"most recent satellite reading is {age_days:.1f} days old (limit is {GLSEA_MAX_AGE_DAYS})",
+            "observed_at_utc": observed.isoformat(),
+        }
+
+    return {
+        "available": True,
+        "observed_at_utc": observed.isoformat(),
+        "water_temp_f": round(sst_c * 9 / 5 + 32, 1),
+        "age_days": round(age_days, 1),
+        "grid_point_used": {"lat": row_lat, "lon": row_lon},
+    }
+
+
 def main():
     output = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "stations": {},
         "zones": {},
         "station_history": {},
+        "satellite_water_temp": {},
     }
 
     for station_id, meta in STATIONS.items():
@@ -422,6 +499,14 @@ def main():
         except Exception as err:
             zone_result["alert"] = {"active": False, "error": str(err)}
         output["zones"][zone_id] = zone_result
+
+    for point_id, meta in GLSEA_POINTS.items():
+        try:
+            result = fetch_glsea_point(meta["lat"], meta["lon"])
+        except Exception as err:
+            result = {"available": False, "error": str(err)}
+        result["label"] = meta["label"]
+        output["satellite_water_temp"][point_id] = result
 
     with open("data.json", "w") as f:
         json.dump(output, f, indent=2)
