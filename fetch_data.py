@@ -1,78 +1,8 @@
 """
 PierBite.com — Live Data Fetcher
-==================================================================
-What this file does:
-  Every time it runs, it downloads free public data from three
-  different NOAA/NWS sources and saves the results into a file
-  called data.json in this same repository:
-
-  1. NDBC BUOYS — direct real-time sensor readings, but only exist
-     at a handful of physical locations on the lake.
-
-  2. NWS MARINE ZONE FORECASTS + ALERTS — official government
-     forecasts and safety advisories that exist for EVERY stretch
-     of shoreline, whether or not a buoy is nearby. This is real,
-     named, dated forecast data — never a guess.
-
-  3. GLSEA SATELLITE WATER TEMPERATURE — a NOAA satellite-based
-     picture of the lake surface, used ONLY as a fallback for
-     piers that have no real buoy nearby (Manitowoc, and now
-     Sheboygan — see below). This feed has been observed to
-     sometimes lag by weeks, so every reading is checked for
-     freshness before it's used — see GLSEA_MAX_AGE_DAYS below.
-     A stale reading is never shown as if it were current.
-
-  No password, API key, or paid account is required for any of
-  these sources. All are published openly by the U.S. government.
-
-Stations currently wired up (direct buoy readings):
-  45210  — Two Rivers area buoy   (water temp, wave height, pressure)
-  SGNW3  — Sheboygan station      (wind + pressure only — this is a
-                                    C-MAN structure-mounted station,
-                                    not a buoy, and does not carry a
-                                    water temp or wave sensor)
-  KWNW3  — Kewaunee station       (wind only — same reason as above)
-  45002  — Washington Island area (wind, wave height, water temp)
-
-  As of this update, every station also reports current barometric
-  pressure and its 3-hour trend, where the station provides it —
-  same honest "available: false if missing" pattern as everything
-  else here. A falling 3-hour pressure trend is a classic sign a
-  front is approaching; a sharp rise right after one often means
-  the bite is about to shut off.
-
-Marine zones currently wired up (official forecasts + alerts):
-  LMZ543 — "Two Rivers to Sheboygan WI" — covers the Two Rivers pier
-  LMZ541 — "Rock Island Passage to Sturgeon Bay WI" — covers the
-           Washington Island pier
-  LMZ643 — "Sheboygan to Port Washington WI" — NEW this version,
-           covers the Sheboygan pier (the pier sits at the northern
-           edge of this zone, right where it meets LMZ543)
-
-GLSEA satellite water-temp points currently wired up:
-  manitowoc  — Manitowoc harbor mouth. Manitowoc has no NDBC buoy at
-               all, so this is its only real water-temperature source.
-  sheboygan  — NEW this version. Point sits at the Sheboygan
-               Breakwater Lighthouse (end of the north pier, over
-               open water) rather than any shoreline address, so the
-               satellite grid cell actually lands on water. Used
-               because Sheboygan's own spotter buoy (NDBC 45218) is
-               seasonal and was confirmed "recovered for season" —
-               out of the water — as of this update. If that buoy
-               is redeployed later in the season, it can be added
-               back to STATIONS and this fallback stays as a safety
-               net for whenever it's pulled again.
-
-Airport wind-history stations currently wired up (real HOURLY
-history, not just a current reading — see fetch_station_history):
-  KMTW — Manitowoc Airport (serves the Two Rivers pier)
-  K2P2 — Washington Island Airport
-  KSBM — Sheboygan County Memorial Airport — NEW this version,
-         serves the Sheboygan pier's 72-hour wind trend panel.
-
-This script only uses Python's built-in tools — nothing extra needs
-to be installed for it to run.
-==================================================================
+Fetches current buoy, marine-zone forecast, and satellite water
+temperature data from public NOAA/NWS sources and writes the
+combined result to data.json. No API key or paid account required.
 """
 
 import json
@@ -84,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 # 1. Buoy stations — direct sensor readings.
 # ---------------------------------------------------------------
 STATIONS = {
-    "45210": {"label": "Two Rivers area buoy (Rawley Point East)"},
+    "45210": {"label": "Two Rivers buoy"},
     "SGNW3": {"label": "Sheboygan station"},
     "KWNW3": {"label": "Kewaunee station"},
     "45002": {"label": "Washington Island area buoy"},
@@ -101,7 +31,7 @@ NDBC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
 #     right at the water, so it's labeled honestly on the page.
 # ---------------------------------------------------------------
 STATION_HISTORY = {
-    "KMTW": {"label": "Manitowoc Airport (nearest continuously-reporting wind station)"},
+    "KMTW": {"label": "Manitowoc Airport"},
     "K2P2": {"label": "Washington Island Airport (automated wind station)"},
     "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)"},
 }
