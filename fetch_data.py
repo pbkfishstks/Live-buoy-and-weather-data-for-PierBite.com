@@ -375,38 +375,56 @@ def fetch_zone_forecast(zone_id):
 
 def fetch_station_history(station_id):
     """Get real, timestamped wind readings from a continuously-reporting
-    airport weather station (ASOS). Busy stations like this one report
-    every 5 minutes, and the API caps how many raw records it sends back
-    per request, so we can't always guarantee a full 72 hours — this
-    function is honest about whatever real window it actually receives,
-    rather than assuming it always got the full 72.
+    airport weather station (ASOS). Requests the last ~73 hours in three
+    smaller ~24-hour chunks instead of one big request — a single large
+    request risks tripping an undocumented size cap on busy stations
+    (reporting every ~5 minutes) and can fail outright instead of just
+    returning less data. Smaller chunks stay safely within a size that's
+    already proven to work, for any station's reporting frequency.
+
+    Still honest about whatever real window it actually receives, rather
+    than assuming it always got the full 72 hours.
 
     It also downsamples to one clean reading per hour (nearest actual
     observation to each hour mark), instead of keeping every 5-minute
     reading, which would otherwise bloat the file with near-duplicates."""
-    start_time = datetime.now(timezone.utc) - timedelta(hours=73)
-    start_param = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-    url = NWS_STATION_OBS_URL.format(station=station_id) + "?start=" + start_param + "&limit=1200"
-    data = nws_get(url)
-    features = data.get("features", [])
+    now = datetime.now(timezone.utc)
+    chunk_bounds = [
+        (now - timedelta(hours=73), now - timedelta(hours=49)),
+        (now - timedelta(hours=49), now - timedelta(hours=25)),
+        (now - timedelta(hours=25), now),
+    ]
 
     raw = []
-    for feat in features:
-        props = feat.get("properties", {})
-        ws = (props.get("windSpeed") or {}).get("value")
-        wd = (props.get("windDirection") or {}).get("value")
-        ts = props.get("timestamp")
-        if ws is None or wd is None or ts is None:
-            continue
+    for chunk_start, chunk_end in chunk_bounds:
+        start_param = chunk_start.strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_param = chunk_end.strftime("%Y-%m-%dT%H:%M:%SZ")
+        url = (
+            NWS_STATION_OBS_URL.format(station=station_id)
+            + "?start=" + start_param + "&end=" + end_param + "&limit=500"
+        )
         try:
-            when = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-        except ValueError:
-            continue
-        raw.append({
-            "time": when,
-            "wind_mph": round(ws * 0.621371, 1),  # station reports km/h
-            "wind_dir": degrees_to_compass(wd),
-        })
+            data = nws_get(url)
+        except Exception:
+            continue  # this chunk failed — keep whatever the other chunks gave us
+        features = data.get("features", [])
+
+        for feat in features:
+            props = feat.get("properties", {})
+            ws = (props.get("windSpeed") or {}).get("value")
+            wd = (props.get("windDirection") or {}).get("value")
+            ts = props.get("timestamp")
+            if ws is None or wd is None or ts is None:
+                continue
+            try:
+                when = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            raw.append({
+                "time": when,
+                "wind_mph": round(ws * 0.621371, 1),  # station reports km/h
+                "wind_dir": degrees_to_compass(wd),
+            })
 
     if not raw:
         return {"available": False}
