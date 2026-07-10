@@ -386,7 +386,7 @@ def fetch_station_history(station_id):
     reading, which would otherwise bloat the file with near-duplicates."""
     start_time = datetime.now(timezone.utc) - timedelta(hours=73)
     start_param = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-    url = NWS_STATION_OBS_URL.format(station=station_id) + "?start=" + start_param + "&limit=500"
+    url = NWS_STATION_OBS_URL.format(station=station_id) + "?start=" + start_param + "&limit=1200"
     data = nws_get(url)
     features = data.get("features", [])
 
