@@ -332,7 +332,10 @@ def parse_zone_periods(raw_text):
 
 def fetch_zone_forecast(zone_id):
     """Get the official NWS marine forecast text bulletin for one shoreline
-    zone, and read the current (first) forecast period from it."""
+    zone. Reads the current (first) forecast period as before, and now also
+    keeps the next few periods so the page can show whether things are
+    trending better or worse over the next day or two — still real NWS
+    text, not a guess, just more of it than before."""
     url = NWS_ZONE_TEXT_URL.format(zone_lower=zone_id.lower())
     req = urllib.request.Request(url, headers={"User-Agent": NWS_USER_AGENT})
     with urllib.request.urlopen(req, timeout=30) as response:
@@ -342,18 +345,31 @@ def fetch_zone_forecast(zone_id):
     if not periods:
         return {"available": False}
 
-    period_name, period_text = periods[0]
-    wind_part, wave_part = split_wind_and_wave(period_text)
+    def parse_period(period_name, period_text):
+        wind_part, wave_part = split_wind_and_wave(period_text)
+        return {
+            "period_name": period_name,
+            "wind_dir": parse_wind_direction(wind_part),
+            "wind_mph_low": parse_wind_speed(wind_part)[0],
+            "wind_mph_high": parse_wind_speed(wind_part)[1],
+            "wave_ft_low": parse_wave_height(wave_part)[0],
+            "wave_ft_high": parse_wave_height(wave_part)[1],
+            "detailed_text": period_text,
+        }
+
+    current = parse_period(*periods[0])
+    upcoming = [parse_period(name, text) for name, text in periods[1:4]]
 
     return {
         "available": True,
-        "period_name": period_name,
-        "wind_dir": parse_wind_direction(wind_part),
-        "wind_mph_low": parse_wind_speed(wind_part)[0],
-        "wind_mph_high": parse_wind_speed(wind_part)[1],
-        "wave_ft_low": parse_wave_height(wave_part)[0],
-        "wave_ft_high": parse_wave_height(wave_part)[1],
-        "detailed_text": period_text,
+        "period_name": current["period_name"],
+        "wind_dir": current["wind_dir"],
+        "wind_mph_low": current["wind_mph_low"],
+        "wind_mph_high": current["wind_mph_high"],
+        "wave_ft_low": current["wave_ft_low"],
+        "wave_ft_high": current["wave_ft_high"],
+        "detailed_text": current["detailed_text"],
+        "upcoming": upcoming,
     }
 
 
