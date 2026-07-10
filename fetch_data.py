@@ -26,11 +26,18 @@ What this file does:
   these sources. All are published openly by the U.S. government.
 
 Stations currently wired up (direct buoy readings):
-  45210  — Two Rivers area buoy   (water temp, wave height)
+  45210  — Two Rivers area buoy   (water temp, wave height, pressure)
   SGNW3  — Sheboygan station      (wind only — this station does
                                     not measure water temp or waves)
   KWNW3  — Kewaunee station       (wind only — same as above)
   45002  — Washington Island area (wind, wave height, water temp)
+
+  As of this update, every station also reports current barometric
+  pressure and its 3-hour trend, where the station provides it —
+  same honest "available: false if missing" pattern as everything
+  else here. A falling 3-hour pressure trend is a classic sign a
+  front is approaching; a sharp rise right after one often means
+  the bite is about to shut off.
 
 Marine zones currently wired up (official forecasts + alerts):
   LMZ543 — "Two Rivers to Sheboygan WI" — covers the Two Rivers pier
@@ -164,6 +171,10 @@ def fetch_station(station_id):
             "gust_ms": to_float(parts[7]),
             "wave_height_m": to_float(parts[8]),
             "water_temp_c": to_float(parts[14]),
+            # PRES (index 12) and PTDY (index 17) — standard NDBC columns,
+            # confirmed against a live station reading before adding this.
+            "pressure_hpa": to_float(parts[12]),
+            "pressure_tendency_hpa": to_float(parts[17]) if len(parts) > 17 else None,
         })
 
     readings.reverse()  # oldest first, newest last
@@ -219,6 +230,11 @@ def summarize_station(station_id, readings):
         "water_temp_f": current_water_f,
         "water_change_24h_f": change_24h,
         "water_change_72h_f": change_72h,
+        # Pressure in hPa (millibars), plus NDBC's own 3-hour tendency
+        # value — a falling reading here is the classic "front's coming"
+        # signal; a sharp rise right after often means the bite shuts off.
+        "pressure_hpa": latest["pressure_hpa"],
+        "pressure_tendency_3h_hpa": latest["pressure_tendency_hpa"],
     }
 
 
