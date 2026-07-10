@@ -16,20 +16,22 @@ What this file does:
 
   3. GLSEA SATELLITE WATER TEMPERATURE — a NOAA satellite-based
      picture of the lake surface, used ONLY as a fallback for
-     piers that have no real buoy nearby (starting with
-     Manitowoc). This feed has been observed to sometimes lag by
-     weeks, so every reading is checked for freshness before it's
-     used — see GLSEA_MAX_AGE_DAYS below. A stale reading is never
-     shown as if it were current.
+     piers that have no real buoy nearby (Manitowoc, and now
+     Sheboygan — see below). This feed has been observed to
+     sometimes lag by weeks, so every reading is checked for
+     freshness before it's used — see GLSEA_MAX_AGE_DAYS below.
+     A stale reading is never shown as if it were current.
 
   No password, API key, or paid account is required for any of
   these sources. All are published openly by the U.S. government.
 
 Stations currently wired up (direct buoy readings):
   45210  — Two Rivers area buoy   (water temp, wave height, pressure)
-  SGNW3  — Sheboygan station      (wind only — this station does
-                                    not measure water temp or waves)
-  KWNW3  — Kewaunee station       (wind only — same as above)
+  SGNW3  — Sheboygan station      (wind + pressure only — this is a
+                                    C-MAN structure-mounted station,
+                                    not a buoy, and does not carry a
+                                    water temp or wave sensor)
+  KWNW3  — Kewaunee station       (wind only — same reason as above)
   45002  — Washington Island area (wind, wave height, water temp)
 
   As of this update, every station also reports current barometric
@@ -43,11 +45,30 @@ Marine zones currently wired up (official forecasts + alerts):
   LMZ543 — "Two Rivers to Sheboygan WI" — covers the Two Rivers pier
   LMZ541 — "Rock Island Passage to Sturgeon Bay WI" — covers the
            Washington Island pier
+  LMZ643 — "Sheboygan to Port Washington WI" — NEW this version,
+           covers the Sheboygan pier (the pier sits at the northern
+           edge of this zone, right where it meets LMZ543)
 
 GLSEA satellite water-temp points currently wired up:
-  manitowoc — Manitowoc harbor mouth. Manitowoc has no NDBC buoy at
-              all, so this is its only real water-temperature source
-              right now.
+  manitowoc  — Manitowoc harbor mouth. Manitowoc has no NDBC buoy at
+               all, so this is its only real water-temperature source.
+  sheboygan  — NEW this version. Point sits at the Sheboygan
+               Breakwater Lighthouse (end of the north pier, over
+               open water) rather than any shoreline address, so the
+               satellite grid cell actually lands on water. Used
+               because Sheboygan's own spotter buoy (NDBC 45218) is
+               seasonal and was confirmed "recovered for season" —
+               out of the water — as of this update. If that buoy
+               is redeployed later in the season, it can be added
+               back to STATIONS and this fallback stays as a safety
+               net for whenever it's pulled again.
+
+Airport wind-history stations currently wired up (real HOURLY
+history, not just a current reading — see fetch_station_history):
+  KMTW — Manitowoc Airport (serves the Two Rivers pier)
+  K2P2 — Washington Island Airport
+  KSBM — Sheboygan County Memorial Airport — NEW this version,
+         serves the Sheboygan pier's 72-hour wind trend panel.
 
 This script only uses Python's built-in tools — nothing extra needs
 to be installed for it to run.
@@ -82,6 +103,7 @@ NDBC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
 STATION_HISTORY = {
     "KMTW": {"label": "Manitowoc Airport (nearest continuously-reporting wind station)"},
     "K2P2": {"label": "Washington Island Airport (automated wind station)"},
+    "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)"},
 }
 
 NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
@@ -92,6 +114,7 @@ NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
 ZONES = {
     "LMZ543": {"label": "Two Rivers to Sheboygan WI"},
     "LMZ541": {"label": "Rock Island Passage to Sturgeon Bay WI"},
+    "LMZ643": {"label": "Sheboygan to Port Washington WI"},
 }
 
 NWS_ZONE_TEXT_URL = "https://tgftp.nws.noaa.gov/data/forecasts/marine/near_shore/lm/{zone_lower}.txt"
@@ -100,14 +123,19 @@ NWS_USER_AGENT = "PierBiteDotCom (contact: pierbite project owner)"
 
 # ---------------------------------------------------------------
 # 1d. GLSEA satellite water temperature — fallback for piers with
-#     no real buoy. See the module docstring above for details on
-#     the freshness check.
+#     no real buoy currently in the water. See the module docstring
+#     above for details on the freshness check.
 # ---------------------------------------------------------------
 GLSEA_POINTS = {
     "manitowoc": {
         "lat": 44.0955,
         "lon": -87.6608,
         "label": "Manitowoc harbor mouth (satellite estimate — GLSEA; no buoy exists here)",
+    },
+    "sheboygan": {
+        "lat": 43.7495,
+        "lon": -87.6927,
+        "label": "Sheboygan Breakwater Lighthouse, north pier (satellite estimate — GLSEA; buoy 45218 is seasonal and currently out of the water)",
     },
 }
 
