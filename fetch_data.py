@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 # 1. Buoy stations — direct sensor readings.
 # ---------------------------------------------------------------
 STATIONS = {
-    "45210": {"label": "Two Rivers buoy", "codename": "tr1"},
+    "45210": {"label": "Two Rivers / Manitowoc area buoy", "codenames": ["tr1", "mt1"]},
     "SGNW3": {"label": "Sheboygan station"},
     "KWNW3": {"label": "Kewaunee station"},
     "45002": {"label": "Washington Island area buoy"},
@@ -31,7 +31,7 @@ NDBC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
 #     right at the water, so it's labeled honestly on the page.
 # ---------------------------------------------------------------
 STATION_HISTORY = {
-    "KMTW": {"label": "Manitowoc Airport", "codename": "trw"},
+    "KMTW": {"label": "Manitowoc Airport", "codenames": ["trw", "mtw"]},
     "K2P2": {"label": "Washington Island Airport (automated wind station)"},
     "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)"},
 }
@@ -42,7 +42,7 @@ NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
 # 1b. Marine forecast zones — official NWS forecasts + alerts.
 # ---------------------------------------------------------------
 ZONES = {
-    "LMZ543": {"label": "Two Rivers to Sheboygan WI", "codename": "trz"},
+    "LMZ543": {"label": "Two Rivers to Sheboygan WI", "codenames": ["trz", "mtz"]},
     "LMZ541": {"label": "Rock Island Passage to Sturgeon Bay WI"},
     "LMZ643": {"label": "Sheboygan to Port Washington WI"},
 }
@@ -489,7 +489,11 @@ def main():
         except Exception as err:
             summary = {"available": False, "error": str(err)}
         summary["label"] = meta["label"]
-        output["stations"][meta.get("codename", station_id)] = summary
+        # A single physical station can feed more than one pier (e.g. a
+        # shared buoy) — write the same reading under every codename that
+        # points to it, without fetching it twice.
+        for codename in meta.get("codenames", [meta.get("codename", station_id)]):
+            output["stations"][codename] = summary
 
     for station_id, meta in STATION_HISTORY.items():
         try:
@@ -497,7 +501,8 @@ def main():
         except Exception as err:
             history = {"available": False, "error": str(err)}
         history["label"] = meta["label"]
-        output["station_history"][meta.get("codename", station_id)] = history
+        for codename in meta.get("codenames", [meta.get("codename", station_id)]):
+            output["station_history"][codename] = history
 
     for zone_id, meta in ZONES.items():
         zone_result = {"label": meta["label"]}
@@ -509,7 +514,8 @@ def main():
             zone_result["alert"] = fetch_zone_alerts(zone_id)
         except Exception as err:
             zone_result["alert"] = {"active": False, "error": str(err)}
-        output["zones"][meta.get("codename", zone_id)] = zone_result
+        for codename in meta.get("codenames", [meta.get("codename", zone_id)]):
+            output["zones"][codename] = zone_result
 
     for point_id, meta in GLSEA_POINTS.items():
         try:
