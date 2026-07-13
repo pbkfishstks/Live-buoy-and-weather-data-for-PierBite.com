@@ -45,7 +45,7 @@ ZONES = {
     "LMZ543": {"label": "Two Rivers to Sheboygan WI", "codenames": ["trz", "mtz"]},
     "LMZ541": {"label": "Rock Island Passage to Sturgeon Bay WI"},
     "LMZ643": {"label": "Sheboygan to Port Washington WI"},
-    "LMZ565": {"label": "Sturgeon Bay to Two Rivers WI", "codenames": ["kwz"]},
+    "LMZ542": {"label": "Sturgeon Bay to Two Rivers WI", "codenames": ["kwz"]},
 }
 
 NWS_ZONE_TEXT_URL = "https://tgftp.nws.noaa.gov/data/forecasts/marine/near_shore/lm/{zone_lower}.txt"
