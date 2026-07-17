@@ -3,6 +3,10 @@ PierBite.com — Live Data Fetcher
 Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
+
+Updated 2026-07-17: added Algoma — dormant AGMW3 wind station (wired
+for automatic reactivation), shared LMZ542 marine zone codename
+"algz", and a dormant GLSEA satellite point for Algoma harbor.
 """
 
 import json
@@ -34,6 +38,7 @@ STATION_HISTORY = {
     "K2P2": {"label": "Washington Island Airport (automated wind station)"},
     "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)"},
     "KWNW3": {"label": "Kewaunee MET station (nearest continuously-reporting wind station)", "codenames": ["kww"]},
+    "AGMW3": {"label": "Algoma City Marina, WI (dormant \u2014 NOAA has not transmitted data from this station since approximately 2017; wired here so it activates automatically with no code changes if the station ever comes back online)", "codenames": ["agw"]},
 }
 
 NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
@@ -45,7 +50,7 @@ ZONES = {
     "LMZ543": {"label": "Two Rivers to Sheboygan WI", "codenames": ["trz", "mtz"]},
     "LMZ541": {"label": "Rock Island Passage to Sturgeon Bay WI"},
     "LMZ643": {"label": "Sheboygan to Port Washington WI"},
-    "LMZ542": {"label": "Sturgeon Bay to Two Rivers WI", "codenames": ["kwz"]},
+    "LMZ542": {"label": "Sturgeon Bay to Two Rivers WI", "codenames": ["kwz", "algz"]},
 }
 
 NWS_ZONE_TEXT_URL = "https://tgftp.nws.noaa.gov/data/forecasts/marine/near_shore/lm/{zone_lower}.txt"
@@ -72,6 +77,11 @@ GLSEA_POINTS = {
         "lat": 44.4589,
         "lon": -87.5094,
         "label": "Kewaunee Pierhead (satellite estimate — GLSEA; no buoy exists here)",
+    },
+    "algoma": {
+        "lat": 44.6086,
+        "lon": -87.4350,
+        "label": "Algoma harbor mouth (satellite estimate — GLSEA; no buoy exists here; GLSEA is currently blocked by an anti-bot wall, so this will report unavailable until that's resolved)",
     },
 }
 
