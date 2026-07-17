@@ -9,7 +9,23 @@ for automatic reactivation), shared LMZ542 marine zone codename
 "algz", and a dormant GLSEA satellite point for Algoma harbor. Also
 wired Sturgeon Bay's 0Y2W3 CG station dormant ahead of that pier's
 build.
+
+Updated 2026-07-17 (v5, scoring engine — rebuilt after the original
+v5 session was cut off before delivery): the 0-100 Bite Index
+scoring engine now lives HERE in the backend instead of being
+copy-pasted into every page. Adds a finished "piers" section to
+data.json (score, band, factor breakdown, honesty labels per pier),
+plus "hot_piers_today", "schema_version", and "stale_after_hours".
+Includes two scoring fixes: (1) a pier missing water temp from ALL
+sources is capped at 55 and marked incomplete instead of stretching
+its remaining factors, and (2) warm-water hard caps now apply to
+satellite and estimated temps too, not just live buoy readings.
+PURELY ADDITIVE: every section v4 wrote is still written unchanged
+under the same keys, so no live page breaks on deploy.
 """
+
+# File: fetch_data-v5-scoring-engine-rebuilt.py
+# Delivered: 2026-07-17 (v5 — scoring engine rebuild)
 
 import json
 import re
@@ -493,6 +509,423 @@ def fetch_glsea_point(lat, lon):
     }
 
 
+# ---------------------------------------------------------------
+# 2. SCORING ENGINE — new in v5. "The backend thinks, the
+#    frontend displays."
+#
+#    Everything above this line is unchanged from v4. Everything
+#    below computes each pier's finished 0-100 Bite Index score,
+#    band, factor breakdown, and honesty labels, and publishes
+#    them in a new "piers" section of data.json. The pages on the
+#    site can then simply display these numbers instead of each
+#    re-computing the score themselves (which is how a scoring bug
+#    once had to be fixed in many separate files).
+#
+#    The math here is ported line-for-line from the proven Two
+#    Rivers page implementation, with two deliberate fixes:
+#
+#    FIX 1 (the "stretch bug"): a pier with no water temperature
+#    from ANY source used to quietly re-weight its remaining
+#    factors up to 100%, letting a data-incomplete pier outscore a
+#    complete one. Now: if no water temp exists at all, the score
+#    is capped at 55 and the pier is marked "incomplete".
+#
+#    FIX 2: the warm-water hard caps (which push the score down
+#    when the water is too warm for salmon/trout) now apply
+#    whenever ANY water temperature exists — live, satellite, or
+#    estimated — not only live buoy readings.
+# ---------------------------------------------------------------
+
+SCHEMA_VERSION = 1
+# If data.json is older than this many hours, pages should treat
+# it as stale instead of presenting old numbers as LIVE.
+STALE_AFTER_HOURS = 3
+
+# One entry per pier. Adding a future pier = adding one entry here.
+#   buoy            key in output["stations"] for this pier's own buoy (or None)
+#   satellite       key in output["satellite_water_temp"] for its own satellite point (or None)
+#   water_fallbacks ordered borrow-chain if own sources are dark:
+#                   ("station"|"satellite", key, "Name shown to the user")
+#   wind_history    ordered list of output["station_history"] keys:
+#                   (key, None) = the pier's own station,
+#                   (key, "Name") = borrowed from a neighbor, labeled ESTIMATED
+#   zone            key in output["zones"] for forecast + alerts
+PIERS = {
+    "two_rivers": {
+        "name": "Two Rivers / Neshotah",
+        "buoy": "tr1",
+        "satellite": None,
+        "water_fallbacks": [("station", "mt1", "Manitowoc"), ("station", "kw1", "Kewaunee")],
+        "wind_history": [("trw", None)],
+        "zone": "trz",
+    },
+    "manitowoc": {
+        "name": "Manitowoc",
+        "buoy": "mt1",
+        "satellite": "manitowoc",
+        "water_fallbacks": [],
+        "wind_history": [("mtw", None)],
+        "zone": "mtz",
+    },
+    "sheboygan": {
+        "name": "Sheboygan",
+        "buoy": "SGNW3",
+        "satellite": "sheboygan",
+        "water_fallbacks": [("station", "mt1", "Manitowoc"), ("station", "tr1", "Two Rivers")],
+        "wind_history": [("KSBM", None)],
+        "zone": "LMZ643",
+    },
+    "kewaunee": {
+        "name": "Kewaunee",
+        "buoy": None,
+        "satellite": "kewaunee",
+        "water_fallbacks": [("station", "tr1", "Two Rivers"), ("station", "mt1", "Manitowoc")],
+        "wind_history": [("kww", None)],
+        "zone": "kwz",
+    },
+    "algoma": {
+        "name": "Algoma",
+        "buoy": None,
+        "satellite": "algoma",
+        # Deliberate design decision (matches the live Algoma page):
+        # every borrowed water reading is labeled "Kewaunee" —
+        # Algoma borrows whatever Kewaunee itself would show.
+        "water_fallbacks": [
+            ("satellite", "kewaunee", "Kewaunee"),
+            ("station", "tr1", "Kewaunee"),
+            ("station", "mt1", "Kewaunee"),
+        ],
+        "wind_history": [("agw", None), ("kww", "Kewaunee")],
+        "zone": "algz",
+    },
+    "sturgeon_bay": {
+        # PROVISIONAL — this pier's page is not built yet. The zone
+        # choice (LMZ542, "Sturgeon Bay to Two Rivers") and the
+        # water borrow-chain are placeholders to be confirmed in
+        # the Sturgeon Bay build session. Its own wind station
+        # (sbcg / 0Y2W3) is wired but dormant, so wind will come
+        # from the zone forecast until that session decides more.
+        "name": "Sturgeon Bay",
+        "buoy": None,
+        "satellite": None,
+        "water_fallbacks": [("station", "tr1", "Two Rivers"), ("station", "mt1", "Manitowoc")],
+        "wind_history": [("sbcg", None)],
+        "zone": "algz",
+    },
+    "washington_island": {
+        "name": "Washington Island",
+        "buoy": "45002",
+        "satellite": None,
+        "water_fallbacks": [],
+        "wind_history": [("K2P2", None)],
+        "zone": "LMZ541",
+    },
+}
+
+# Compass direction -> degrees, built from the COMPASS list above.
+_COMPASS_DEG = {name: idx * 22.5 for idx, name in enumerate(COMPASS)}
+
+
+def clamp(value, low, high):
+    """Keep a number inside a range."""
+    return max(low, min(high, value))
+
+
+def westerly_component(dir_code):
+    """How 'westerly' a wind direction is: W = +1 (good, offshore
+    for Wisconsin's west-shore piers), E = -1 (bad, onshore).
+    Unknown/missing directions count as 0 (neutral), exactly like
+    the page implementation this was ported from."""
+    import math
+    deg = _COMPASS_DEG.get(dir_code)
+    if deg is None:
+        return 0.0
+    return math.cos((deg - 270.0) * math.pi / 180.0)
+
+
+def score_wind(history, zone_forecast, borrowed_from):
+    """0-100 wind factor. Prefers real hourly history (LIVE, or
+    ESTIMATED when the history belongs to a neighbor); falls back
+    to the zone forecast direction (FORECAST). Ported exactly from
+    the Two Rivers page, including the 'recent onshore shift'
+    penalty."""
+    if history and history.get("available") and history.get("hourly"):
+        hourly = history["hourly"]
+        comps = [westerly_component(h.get("dir")) for h in hourly]
+        recent = [westerly_component(h.get("dir")) for h in hourly if h.get("hours_ago", 99) <= 12]
+        j = sum(comps) / len(comps) if comps else 0.0
+        z = sum(recent) / len(recent) if recent else j
+        score = round(clamp(50 + 38 * j, 5, 90))
+        if j > 0.25 and z < -0.1:
+            score = round(clamp(score - 22, 5, 95))
+        if borrowed_from:
+            return {"score": score, "source": "ESTIMATED", "source_name": borrowed_from}
+        return {"score": score, "source": "LIVE", "source_name": None}
+    if zone_forecast and zone_forecast.get("available") and zone_forecast.get("wind_dir"):
+        score = round(clamp(50 + 40 * westerly_component(zone_forecast["wind_dir"]), 5, 95))
+        return {"score": score, "source": "FORECAST", "source_name": None}
+    return None
+
+
+def score_water(temp_f, change_72h_f):
+    """0-100 water-temperature factor, ported exactly from the Two
+    Rivers page: an ideal band around 50-56F, penalties as it
+    warms, plus a bonus/penalty for the 72-hour trend (a dropping
+    temp often signals an upwelling, which turns the bite on)."""
+    if 50 <= temp_f <= 56:
+        base = 72
+    elif temp_f < 50:
+        base = 72 - 2.2 * (50 - temp_f)
+    elif temp_f <= 62:
+        base = 72 - 4 * (temp_f - 56)
+    else:
+        base = 48 - 7 * (temp_f - 62)
+    base = clamp(base, 3, 82)
+    trend = clamp(2.4 * -change_72h_f, -20, 12) if change_72h_f is not None else 0
+    return round(clamp(base + trend, 5, 98))
+
+
+def score_waves(wave_ft, alert_active):
+    """0-100 lake-conditions factor from wave height; an active
+    marine advisory hard-caps it."""
+    if wave_ft <= 1.5:
+        score = 90
+    elif wave_ft <= 3:
+        score = 72
+    elif wave_ft <= 5:
+        score = 38
+    else:
+        score = 14
+    if alert_active:
+        score = min(score, 24)
+    return round(score)
+
+
+def resolve_water(pier_cfg, output):
+    """Walk one pier's water-temperature source chain, most-honest
+    source first: own live buoy -> own satellite point -> borrowed
+    neighbor readings. Returns None if every source is dark."""
+    stations = output.get("stations", {})
+    sats = output.get("satellite_water_temp", {})
+
+    buoy_key = pier_cfg.get("buoy")
+    if buoy_key:
+        own = stations.get(buoy_key, {})
+        if own.get("available") and isinstance(own.get("water_temp_f"), (int, float)):
+            return {
+                "temp_f": own["water_temp_f"],
+                "source": "LIVE",
+                "source_name": None,
+                "change_24h_f": own.get("water_change_24h_f"),
+                "change_72h_f": own.get("water_change_72h_f"),
+            }
+
+    sat_key = pier_cfg.get("satellite")
+    if sat_key:
+        sat = sats.get(sat_key, {})
+        if sat.get("available") and isinstance(sat.get("water_temp_f"), (int, float)):
+            return {
+                "temp_f": sat["water_temp_f"],
+                "source": "SATELLITE",
+                "source_name": None,
+                "change_24h_f": None,
+                "change_72h_f": None,
+            }
+
+    for kind, key, name in pier_cfg.get("water_fallbacks", []):
+        pool = stations if kind == "station" else sats
+        src = pool.get(key, {})
+        if src.get("available") and isinstance(src.get("water_temp_f"), (int, float)):
+            return {
+                "temp_f": src["water_temp_f"],
+                "source": "ESTIMATED",
+                "source_name": name,
+                "change_24h_f": None,
+                "change_72h_f": None,
+            }
+    return None
+
+
+def band_for(score):
+    """Score band label + the site color token it maps to."""
+    if score is None:
+        return {"label": "Not enough data", "tone": "muted"}
+    if score >= 85:
+        return {"label": "Strong Setup", "tone": "good"}
+    if score >= 70:
+        return {"label": "Good", "tone": "good"}
+    if score >= 50:
+        return {"label": "Fair", "tone": "gold"}
+    if score >= 30:
+        return {"label": "Slow", "tone": "warn"}
+    return {"label": "Poor", "tone": "bad"}
+
+
+def build_piers(output):
+    """Compute the finished, ready-to-display block for every pier
+    from the raw sections already collected above. Makes no extra
+    network requests."""
+    piers_out = {}
+    for pier_id, cfg in PIERS.items():
+        stations = output.get("stations", {})
+        zones = output.get("zones", {})
+        histories = output.get("station_history", {})
+
+        zone = zones.get(cfg["zone"], {})
+        forecast = zone.get("forecast", {"available": False})
+        alert = zone.get("alert", {"active": False})
+        alert_active = bool(alert.get("active"))
+
+        # --- Wind factor: first history source in the chain that
+        # has real data wins; otherwise fall back to the forecast.
+        wind_factor = None
+        for hist_key, borrowed_from in cfg.get("wind_history", []):
+            hist = histories.get(hist_key)
+            if hist and hist.get("available") and hist.get("hourly"):
+                wind_factor = score_wind(hist, None, borrowed_from)
+                wind_headline = {
+                    "dir": hist.get("current_wind_dir"),
+                    "mph": hist.get("current_wind_mph"),
+                    "mph_low": None,
+                    "mph_high": None,
+                    "source": wind_factor["source"],
+                    "source_name": wind_factor.get("source_name"),
+                }
+                break
+        else:
+            wind_factor = score_wind(None, forecast, None)
+            if wind_factor:
+                wind_headline = {
+                    "dir": forecast.get("wind_dir"),
+                    "mph": None,
+                    "mph_low": forecast.get("wind_mph_low"),
+                    "mph_high": forecast.get("wind_mph_high"),
+                    "source": "FORECAST",
+                    "source_name": None,
+                }
+            else:
+                wind_headline = {"dir": None, "mph": None, "mph_low": None,
+                                 "mph_high": None, "source": None, "source_name": None}
+
+        # --- Water factor (FIX 1 + FIX 2 live here).
+        water = resolve_water(cfg, output)
+        if water is not None:
+            water_score = score_water(water["temp_f"], water["change_72h_f"])
+        else:
+            water_score = None
+
+        # --- Waves factor: own buoy reading first, else forecast range.
+        wave_ft = None
+        wave_source = None
+        buoy = stations.get(cfg["buoy"], {}) if cfg.get("buoy") else {}
+        if buoy.get("available") and isinstance(buoy.get("wave_ft"), (int, float)):
+            wave_ft = buoy["wave_ft"]
+            wave_source = "LIVE"
+        elif (forecast.get("available")
+              and forecast.get("wave_ft_low") is not None
+              and forecast.get("wave_ft_high") is not None):
+            wave_ft = (forecast["wave_ft_low"] + forecast["wave_ft_high"]) / 2
+            wave_source = "FORECAST"
+
+        # --- Assemble the four factors (weights match the pages:
+        # wind 30, water 30, lake conditions 20, clarity 20).
+        factors = []
+        if wind_factor:
+            factors.append({
+                "label": "Wind / Upwelling", "score": wind_factor["score"], "weight": 30,
+                "source": wind_factor["source"], "source_name": wind_factor.get("source_name"),
+            })
+        else:
+            factors.append({"label": "Wind / Upwelling", "score": None, "weight": 30,
+                            "source": "MISSING", "source_name": None})
+        if water_score is not None:
+            factors.append({
+                "label": "Water Temperature", "score": water_score, "weight": 30,
+                "source": water["source"], "source_name": water["source_name"],
+            })
+        else:
+            factors.append({"label": "Water Temperature", "score": None, "weight": 30,
+                            "source": "MISSING", "source_name": None})
+        if wave_ft is not None:
+            factors.append({
+                "label": "Lake Conditions", "score": score_waves(wave_ft, alert_active),
+                "weight": 20, "source": wave_source, "source_name": None,
+            })
+        else:
+            factors.append({"label": "Lake Conditions", "score": None, "weight": 20,
+                            "source": "MISSING", "source_name": None})
+        factors.append({"label": "Clarity / Storm", "score": None, "weight": 20,
+                        "source": "NOT_SCORED", "source_name": None,
+                        "note": "no clarity source yet"})
+
+        # --- Weighted total over the factors that actually scored.
+        scored = [f for f in factors if f["score"] is not None]
+        total_weight = sum(f["weight"] for f in scored)
+        score = (round(sum(f["score"] * (f["weight"] / total_weight) for f in scored))
+                 if total_weight > 0 else None)
+
+        incomplete = False
+        if score is not None and water is not None:
+            # FIX 2: warm-water hard caps apply to ANY temp source.
+            t = water["temp_f"]
+            if t >= 74:
+                score = min(score, 10)
+            elif t >= 72:
+                score = min(score, 20)
+            elif t >= 70:
+                score = min(score, 28)
+            elif t >= 68:
+                score = min(score, 44)
+        if score is not None and water is None:
+            # FIX 1: no water temp from any source -> capped and
+            # visibly marked incomplete, never quietly stretched.
+            score = min(score, 55)
+            incomplete = True
+
+        estimated_labels = [f["label"] for f in scored if f["source"] == "ESTIMATED"]
+
+        piers_out[pier_id] = {
+            "name": cfg["name"],
+            "score": score,
+            "band": band_for(score),
+            "incomplete": incomplete,
+            "verified_count": len(scored) - len(estimated_labels),
+            "factor_total": 4,
+            "estimated_factors": estimated_labels,
+            "factors": factors,
+            "alert_active": alert_active,
+            "headline": {
+                "water_temp_f": water["temp_f"] if water else None,
+                "water_temp_source": water["source"] if water else None,
+                "water_temp_from": water["source_name"] if water else None,
+                "water_change_24h_f": water["change_24h_f"] if water else None,
+                "water_change_72h_f": water["change_72h_f"] if water else None,
+                "wind": wind_headline,
+                "wave_ft": round(wave_ft, 1) if wave_ft is not None else None,
+                "wave_source": wave_source,
+                "pressure_hpa": buoy.get("pressure_hpa") if buoy.get("available") else None,
+                "pressure_tendency_3h_hpa": (buoy.get("pressure_tendency_3h_hpa")
+                                             if buoy.get("available") else None),
+            },
+        }
+    return piers_out
+
+
+def compute_hot_piers(piers):
+    """The HOT PIER TODAY badge, computed once here so the home
+    page and pier pages can never disagree. Rule (decided
+    2026-07-16): only piers with LIVE water-temp data can win;
+    genuine ties all get the badge; if no pier has live water data
+    today, nobody gets it."""
+    live = {pid: p for pid, p in piers.items()
+            if p["headline"]["water_temp_source"] == "LIVE" and p["score"] is not None}
+    if not live:
+        return []
+    top = max(p["score"] for p in live.values())
+    return sorted(pid for pid, p in live.items() if p["score"] == top)
+
+
+
 def main():
     output = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -544,6 +977,14 @@ def main():
             result = {"available": False, "error": str(err)}
         result["label"] = meta["label"]
         output["satellite_water_temp"][point_id] = result
+
+    # --- New in v5: finished per-pier scores + data-contract fields.
+    # Added AFTER all raw sections so it works purely from data
+    # already collected above (no extra network requests).
+    output["schema_version"] = SCHEMA_VERSION
+    output["stale_after_hours"] = STALE_AFTER_HOURS
+    output["piers"] = build_piers(output)
+    output["hot_piers_today"] = compute_hot_piers(output["piers"])
 
     with open("data.json", "w") as f:
         json.dump(output, f, indent=2)
