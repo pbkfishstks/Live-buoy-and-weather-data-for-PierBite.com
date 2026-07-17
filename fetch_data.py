@@ -6,7 +6,9 @@ combined result to data.json. No API key or paid account required.
 
 Updated 2026-07-17: added Algoma — dormant AGMW3 wind station (wired
 for automatic reactivation), shared LMZ542 marine zone codename
-"algz", and a dormant GLSEA satellite point for Algoma harbor.
+"algz", and a dormant GLSEA satellite point for Algoma harbor. Also
+wired Sturgeon Bay's 0Y2W3 CG station dormant ahead of that pier's
+build.
 """
 
 import json
@@ -39,6 +41,7 @@ STATION_HISTORY = {
     "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)"},
     "KWNW3": {"label": "Kewaunee MET station (nearest continuously-reporting wind station)", "codenames": ["kww"]},
     "AGMW3": {"label": "Algoma City Marina, WI (dormant \u2014 NOAA has not transmitted data from this station since approximately 2017; wired here so it activates automatically with no code changes if the station ever comes back online)", "codenames": ["agw"]},
+    "0Y2W3": {"label": "Sturgeon Bay CG Station, WI (dormant \u2014 no data currently transmitted; wired here so it activates automatically with no code changes if the station ever comes back online)", "codenames": ["sbcg"]},
 }
 
 NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
