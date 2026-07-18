@@ -31,10 +31,23 @@ wind behind the dormant canal CG station, and a corrected water
 borrow chain (Two Rivers buoy, then independent northern-lake buoy
 45002; the old second fallback was the same physical buoy twice).
 No other pier's configuration or any output key changed.
+
+Updated 2026-07-18 (v7, Washington Island removed): the owner decided
+not to cover Washington Island — it is ferry-access only with a small
+pier, so it doesn't belong in a "where should I fish today" decision.
+Removed: the washington_island pier config, the K2P2 wind-history
+station (island airport, used by no other pier), and marine zone
+LMZ541 (used by no other pier). DELIBERATELY KEPT: buoy 45002
+(northern Lake Michigan) — Sturgeon Bay depends on it as its
+independent water-temp backup; its label still mentions the
+Washington Island area because that is simply where the buoy floats.
+Side effect (intended): the HOT PIER TODAY badge can no longer go to
+Washington Island; it now falls to the best-scoring pier with LIVE
+water data among the six covered piers.
 """
 
-# File: fetch-data-v6-sturgeon-bay-config.py
-# Delivered: 2026-07-18 (v6 — Sturgeon Bay final configuration)
+# File: fetch-data-v7-remove-washington-island.py
+# Delivered: 2026-07-18 (v7 — Washington Island pier removed)
 
 import json
 import re
@@ -62,7 +75,6 @@ NDBC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
 # ---------------------------------------------------------------
 STATION_HISTORY = {
     "KMTW": {"label": "Manitowoc Airport", "codenames": ["trw", "mtw"]},
-    "K2P2": {"label": "Washington Island Airport (automated wind station)"},
     "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)"},
     "KWNW3": {"label": "Kewaunee MET station (nearest continuously-reporting wind station)", "codenames": ["kww"]},
     "KSUE": {"label": "Door County Cherryland Airport, Sturgeon Bay (nearest continuously-reporting wind station, about 7 miles from the canal pier)"},
@@ -78,7 +90,6 @@ NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
 # ---------------------------------------------------------------
 ZONES = {
     "LMZ543": {"label": "Two Rivers to Sheboygan WI", "codenames": ["trz", "mtz"]},
-    "LMZ541": {"label": "Rock Island Passage to Sturgeon Bay WI"},
     "LMZ643": {"label": "Sheboygan to Port Washington WI"},
     "LMZ542": {"label": "Sturgeon Bay to Two Rivers WI", "codenames": ["kwz", "algz"]},
 }
@@ -636,14 +647,6 @@ PIERS = {
         ],
         "wind_history": [("sbcg", None), ("KSUE", None)],
         "zone": "algz",
-    },
-    "washington_island": {
-        "name": "Washington Island",
-        "buoy": "45002",
-        "satellite": None,
-        "water_fallbacks": [],
-        "wind_history": [("K2P2", None)],
-        "zone": "LMZ541",
     },
 }
 
