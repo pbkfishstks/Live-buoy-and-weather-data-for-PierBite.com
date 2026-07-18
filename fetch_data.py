@@ -22,10 +22,19 @@ its remaining factors, and (2) warm-water hard caps now apply to
 satellite and estimated temps too, not just live buoy readings.
 PURELY ADDITIVE: every section v4 wrote is still written unchanged
 under the same keys, so no live page breaks on deploy.
+
+Updated 2026-07-18 (v6, Sturgeon Bay final configuration): added the
+KSUE wind-history station (Door County Cherryland Airport, Sturgeon
+Bay) and replaced Sturgeon Bay's provisional pier entry with the
+confirmed build-session decisions — zone LMZ542, KSUE as live local
+wind behind the dormant canal CG station, and a corrected water
+borrow chain (Two Rivers buoy, then independent northern-lake buoy
+45002; the old second fallback was the same physical buoy twice).
+No other pier's configuration or any output key changed.
 """
 
-# File: fetch_data-v5-scoring-engine-rebuilt.py
-# Delivered: 2026-07-17 (v5 — scoring engine rebuild)
+# File: fetch-data-v6-sturgeon-bay-config.py
+# Delivered: 2026-07-18 (v6 — Sturgeon Bay final configuration)
 
 import json
 import re
@@ -56,6 +65,7 @@ STATION_HISTORY = {
     "K2P2": {"label": "Washington Island Airport (automated wind station)"},
     "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)"},
     "KWNW3": {"label": "Kewaunee MET station (nearest continuously-reporting wind station)", "codenames": ["kww"]},
+    "KSUE": {"label": "Door County Cherryland Airport, Sturgeon Bay (nearest continuously-reporting wind station, about 7 miles from the canal pier)"},
     "AGMW3": {"label": "Algoma City Marina, WI (dormant \u2014 NOAA has not transmitted data from this station since approximately 2017; wired here so it activates automatically with no code changes if the station ever comes back online)", "codenames": ["agw"]},
     "0Y2W3": {"label": "Sturgeon Bay CG Station, WI (dormant \u2014 no data currently transmitted; wired here so it activates automatically with no code changes if the station ever comes back online)", "codenames": ["sbcg"]},
     "C58W3": {"label": "Two Rivers CG Station, WI (dormant \u2014 no data currently transmitted; wired here for completeness, though Two Rivers already has solid live coverage via buoy 45210 and KMTW)", "codenames": ["trcg"]},
@@ -599,17 +609,32 @@ PIERS = {
         "zone": "algz",
     },
     "sturgeon_bay": {
-        # PROVISIONAL — this pier's page is not built yet. The zone
-        # choice (LMZ542, "Sturgeon Bay to Two Rivers") and the
-        # water borrow-chain are placeholders to be confirmed in
-        # the Sturgeon Bay build session. Its own wind station
-        # (sbcg / 0Y2W3) is wired but dormant, so wind will come
-        # from the zone forecast until that session decides more.
+        # CONFIRMED 2026-07-18 (build session decisions, made with
+        # the owner):
+        # - Zone: LMZ542 "Sturgeon Bay to Two Rivers" (via algz).
+        #   The canal pier sits exactly on the LMZ541/LMZ542
+        #   boundary; 542 covers the water at and south of the
+        #   canal where the pier fishing happens, and matches
+        #   Algoma next door.
+        # - Wind: KSUE (Door County Cherryland Airport, ~7 mi from
+        #   the pier) treated as LIVE local wind — the exact same
+        #   standard as KMTW for Two Rivers/Manitowoc and KSBM for
+        #   Sheboygan. The dormant CG station at the canal itself
+        #   (sbcg / 0Y2W3) stays FIRST in the chain so it takes
+        #   over automatically if NOAA ever revives it.
+        # - Water: the old chain listed tr1 then mt1, but those are
+        #   the SAME physical buoy (45210), so the second fallback
+        #   was redundant. Replaced with buoy 45002 (northern Lake
+        #   Michigan) — a genuinely independent backup, honestly
+        #   labeled.
         "name": "Sturgeon Bay",
         "buoy": None,
         "satellite": None,
-        "water_fallbacks": [("station", "tr1", "Two Rivers"), ("station", "mt1", "Manitowoc")],
-        "wind_history": [("sbcg", None)],
+        "water_fallbacks": [
+            ("station", "tr1", "Two Rivers"),
+            ("station", "45002", "Northern Lake Michigan"),
+        ],
+        "wind_history": [("sbcg", None), ("KSUE", None)],
         "zone": "algz",
     },
     "washington_island": {
