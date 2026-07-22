@@ -44,10 +44,23 @@ Washington Island area because that is simply where the buoy floats.
 Side effect (intended): the HOT PIER TODAY badge can no longer go to
 Washington Island; it now falls to the best-scoring pier with LIVE
 water data among the six covered piers.
+
+Updated 2026-07-22 (v8, warm-water cap now visible to the frontend):
+the warm-water hard cap (FIX 2 above) was already lowering scores
+correctly, but the JSON gave the frontend no way to tell "this pier's
+true score is 44" apart from "this pier's score was pulled DOWN to
+44 by the warm-water cap." On a day when water is warm along the
+whole coast, every pier can legitimately land on the same capped
+number, which looked like fake/static data to a site visitor even
+though it was real. Added a new "capped" object to each pier's
+output — {"active": true/false, "reason": "..."} — set only when the
+cap actually changed the score (not just because the pier happens to
+be warm). PURELY ADDITIVE: no existing key's value changes, this is
+one new key per pier.
 """
 
-# File: fetch-data-v7-remove-washington-island.py
-# Delivered: 2026-07-18 (v7 — Washington Island pier removed)
+# File: fetch-data-v8-warm-water-cap-flag.py
+# Delivered: 2026-07-22 (v8 — capped flag added for frontend badge)
 
 import json
 import re
@@ -893,9 +906,11 @@ def build_piers(output):
                  if total_weight > 0 else None)
 
         incomplete = False
+        capped = {"active": False, "reason": None}
         if score is not None and water is not None:
             # FIX 2: warm-water hard caps apply to ANY temp source.
             t = water["temp_f"]
+            uncapped_score = score
             if t >= 74:
                 score = min(score, 10)
             elif t >= 72:
@@ -904,6 +919,14 @@ def build_piers(output):
                 score = min(score, 28)
             elif t >= 68:
                 score = min(score, 44)
+            if score < uncapped_score:
+                # NEW: expose that a cap actually fired (not just that
+                # the pier happens to be warm) so the frontend can show
+                # a badge without re-deriving the threshold itself.
+                capped = {
+                    "active": True,
+                    "reason": "Score capped \u2014 water is too warm for strong salmon and trout activity right now.",
+                }
         if score is not None and water is None:
             # FIX 1: no water temp from any source -> capped and
             # visibly marked incomplete, never quietly stretched.
@@ -917,6 +940,7 @@ def build_piers(output):
             "score": score,
             "band": band_for(score),
             "incomplete": incomplete,
+            "capped": capped,
             "verified_count": len(scored) - len(estimated_labels),
             "factor_total": 4,
             "estimated_factors": estimated_labels,
