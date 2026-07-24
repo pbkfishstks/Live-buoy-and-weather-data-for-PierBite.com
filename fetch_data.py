@@ -57,10 +57,79 @@ output — {"active": true/false, "reason": "..."} — set only when the
 cap actually changed the score (not just because the pier happens to
 be warm). PURELY ADDITIVE: no existing key's value changes, this is
 one new key per pier.
+
+Updated 2026-07-24 (v9, wave curve + real Storm/Clarity factor +
+Beach Hazards Statement banner — decided after direct discussion
+with the owner about why scores clustered around 40 on ordinary bad
+days, and after the owner spotted a live bug via screenshot: a calm
+1.3ft day scored the same "Lake Conditions: 24" as a genuinely rough
+day, because ANY active marine alert force-capped Lake Conditions to
+24 regardless of actual wave height):
+
+  FIX A — alerts were only ever fetching the FIRST active alert per
+  zone. A Small Craft Advisory and a Beach Hazards Statement often
+  fire at the same time for the same event (one is for boaters, one
+  is for swimmers/piers) — the old code could silently drop one of
+  them. fetch_zone_alerts() now returns every active alert. The old
+  single-alert shape (zone["alert"] = {"active", "headline", "event",
+  "severity", "effective_utc", "expires_utc"}) is left completely
+  unchanged for backward compatibility — it is still the FIRST alert
+  found, same as before. NEW, additive: zone["alerts"] = a full list
+  of every active alert, in the same shape, plus a "description"
+  field (the raw NWS text) on each one.
+
+  FIX B — NEW: zone["beach_hazard"] — a dedicated object, separate
+  from the Bite Index score entirely, populated only when a real NWS
+  "Beach Hazards Statement" is active for that zone. Includes the
+  official headline, the raw description text, and (when the NWS
+  text follows its usual "Waves X to Y ft" pattern) a parsed
+  wave_range_ft. This is specifically the NWS product built for
+  shore/pier danger (as opposed to Small Craft Advisory / Gale
+  Warning, which are calibrated for boaters) — confirmed against
+  real NWS Beach Hazards Statement text before building this, not
+  assumed. Surfaced on the frontend as its own banner, NOT folded
+  into the score.
+
+  FIX C — Lake Conditions (waves) scoring replaced. OLD: a flat
+  4-tier lookup (<=1.5ft=90, <=3ft=72, <=5ft=38, anything above
+  5ft=14 no matter how much above), PLUS a blunt rule that forced
+  the score down to 24 whenever ANY alert was active, regardless of
+  actual wave height (this is the bug the owner's screenshot caught
+  live — 1.3ft waves scoring a "24" only because a Small Craft
+  Advisory happened to be active). NEW: score_waves() is now a
+  smooth curve that keeps responding as waves get worse all the way
+  up past 12ft, and the alert-based override is REMOVED — Lake
+  Conditions now honestly reflects the real measured/forecast wave
+  height only. Safety messaging for rough conditions is handled by
+  the Small Craft Advisory banner (unchanged, already live) and the
+  new Beach Hazards banner (FIX B) instead of by silently distorting
+  the score.
+
+  FIX D — the Clarity/Storm factor (20% of the score's weight) was
+  defined in the factor list from day one but NEVER actually
+  computed — every pier's score has only ever really been an average
+  of 3 factors out of the intended 4. NEW: score_storm_severity()
+  turns this on for real, using the worst currently-active
+  boater/fishing-relevant marine alert for that zone (Small Craft
+  Advisory, Gale Warning, Storm Warning, Dense Fog/Smoke) — using the
+  full alerts list from FIX A, not just the first alert. Beach
+  Hazards Statements are DELIBERATELY excluded from this factor —
+  they're about swim/pier safety, not fishing quality, and are
+  represented by their own banner (FIX B) instead.
+
+  NOTE ON SCORES CHANGING: FIX C and FIX D are an intentional,
+  discussed change to the actual score values (not just new fields)
+  — bad days will now score meaningfully lower than before, and every
+  score is now a real 4-factor average instead of a 3-factor one.
+  This was decided deliberately with the owner, not a side effect.
+  The JSON *structure* itself remains additive: no key was removed or
+  renamed, "alert" (singular, first-found) still works exactly as
+  before for anything still reading it.
 """
 
-# File: fetch-data-v8-warm-water-cap-flag.py
-# Delivered: 2026-07-22 (v8 — capped flag added for frontend badge)
+# File: fetch-data-v9-wave-curve-storm-factor-beach-hazards.py
+# Delivered: 2026-07-24 (v9 — wave curve, real Storm/Clarity factor,
+#            Beach Hazards Statement banner, all-alerts fetch)
 
 import json
 import re
@@ -482,22 +551,99 @@ def fetch_station_history(station_id):
     }
 
 
+# ---------------------------------------------------------------
+# NEW in v9 — Beach Hazards Statement wave-range parsing.
+# Real NWS Beach Hazards Statement text follows a consistent pattern,
+# e.g. "...Waves 4 to 6 ft expected." Reuses the same wave-height
+# regex already proven against real marine-zone forecast text
+# (parse_wave_height), rather than writing a second parser.
+# ---------------------------------------------------------------
+def parse_beach_hazard_wave_range(description):
+    """Pull a (low_ft, high_ft) wave range out of a Beach Hazards
+    Statement's raw NWS description text, if the text follows the
+    usual pattern. Returns (None, None) if it can't find one — never
+    guesses a number that isn't actually in the text."""
+    if not description:
+        return (None, None)
+    m = re.search(r"waves?\s+(?:of\s+)?(?:around\s+)?(\d+(?:\.\d+)?)\s*(?:to|-)\s*(\d+(?:\.\d+)?)\s*f(?:oo|ee)?t",
+                  description, re.IGNORECASE)
+    if m:
+        return (float(m.group(1)), float(m.group(2)))
+    return (None, None)
+
+
 def fetch_zone_alerts(zone_id):
-    """Check for any real, currently-active marine advisory in this zone."""
+    """Check for real, currently-active NWS alerts in this zone.
+
+    FIX A (v9): the old version only ever looked at the FIRST alert
+    NOAA returned and discarded the rest. A Small Craft Advisory (for
+    boaters) and a Beach Hazards Statement (for swimmers/piers) often
+    fire at the same time for the same weather event — dropping one
+    silently is a real gap. This now walks every active alert.
+
+    Returns a dict with:
+      - "active": True/False (any alert active at all)
+      - "headline"/"event"/"severity"/"effective_utc"/"expires_utc":
+        the FIRST active alert's fields, in the EXACT same shape as
+        before v9 — unchanged, for backward compatibility with
+        anything already reading zone["alert"].
+      - "alerts": NEW — every active alert, each with the same fields
+        plus "description" (the raw NWS text body).
+      - "beach_hazard": NEW — a dedicated object, {"active": False} if
+        no Beach Hazards Statement is active, otherwise the real
+        headline/description plus a parsed wave_range_ft when the
+        text contains one. Kept separate from the score entirely —
+        this is safety information, not a fishing-quality input.
+    """
     url = NWS_ALERTS_URL.format(zone=zone_id)
     data = nws_get(url)
     features = data.get("features", [])
-    if not features:
-        return {"active": False}
 
-    alert = features[0]["properties"]
+    if not features:
+        return {
+            "active": False,
+            "alerts": [],
+            "beach_hazard": {"active": False},
+        }
+
+    alerts = []
+    for feat in features:
+        props = feat.get("properties", {})
+        alerts.append({
+            "headline": props.get("headline"),
+            "event": props.get("event"),
+            "severity": props.get("severity"),
+            "effective_utc": props.get("effective"),
+            "expires_utc": props.get("expires"),
+            "description": props.get("description"),
+        })
+
+    first = alerts[0]
+
+    beach_hazard = {"active": False}
+    for a in alerts:
+        event = (a.get("event") or "").lower()
+        if "beach hazard" in event:
+            low_ft, high_ft = parse_beach_hazard_wave_range(a.get("description"))
+            beach_hazard = {
+                "active": True,
+                "headline": a.get("headline"),
+                "description": a.get("description"),
+                "wave_range_ft": [low_ft, high_ft] if low_ft is not None else None,
+                "effective_utc": a.get("effective_utc"),
+                "expires_utc": a.get("expires_utc"),
+            }
+            break  # one Beach Hazards Statement is enough to show the banner
+
     return {
         "active": True,
-        "headline": alert.get("headline"),
-        "event": alert.get("event"),
-        "severity": alert.get("severity"),
-        "effective_utc": alert.get("effective"),
-        "expires_utc": alert.get("expires"),
+        "headline": first.get("headline"),
+        "event": first.get("event"),
+        "severity": first.get("severity"),
+        "effective_utc": first.get("effective_utc"),
+        "expires_utc": first.get("expires_utc"),
+        "alerts": alerts,
+        "beach_hazard": beach_hazard,
     }
 
 
@@ -547,27 +693,9 @@ def fetch_glsea_point(lat, lon):
 # 2. SCORING ENGINE — new in v5. "The backend thinks, the
 #    frontend displays."
 #
-#    Everything above this line is unchanged from v4. Everything
-#    below computes each pier's finished 0-100 Bite Index score,
-#    band, factor breakdown, and honesty labels, and publishes
-#    them in a new "piers" section of data.json. The pages on the
-#    site can then simply display these numbers instead of each
-#    re-computing the score themselves (which is how a scoring bug
-#    once had to be fixed in many separate files).
-#
 #    The math here is ported line-for-line from the proven Two
-#    Rivers page implementation, with two deliberate fixes:
-#
-#    FIX 1 (the "stretch bug"): a pier with no water temperature
-#    from ANY source used to quietly re-weight its remaining
-#    factors up to 100%, letting a data-incomplete pier outscore a
-#    complete one. Now: if no water temp exists at all, the score
-#    is capped at 55 and the pier is marked "incomplete".
-#
-#    FIX 2: the warm-water hard caps (which push the score down
-#    when the water is too warm for salmon/trout) now apply
-#    whenever ANY water temperature exists — live, satellite, or
-#    estimated — not only live buoy readings.
+#    Rivers page implementation, with fixes applied over time (see
+#    module docstring above for the full dated history).
 # ---------------------------------------------------------------
 
 SCHEMA_VERSION = 1
@@ -726,20 +854,82 @@ def score_water(temp_f, change_72h_f):
     return round(clamp(base + trend, 5, 98))
 
 
-def score_waves(wave_ft, alert_active):
-    """0-100 lake-conditions factor from wave height; an active
-    marine advisory hard-caps it."""
+def _interp(x, x0, x1, y0, y1):
+    """Straight-line interpolation between two points. Used by the
+    v9 wave curve so scores change smoothly between breakpoints
+    instead of jumping in flat steps."""
+    t = (x - x0) / (x1 - x0)
+    return y0 + t * (y1 - y0)
+
+
+def score_waves(wave_ft):
+    """0-100 Lake Conditions factor from wave height.
+
+    REPLACED in v9. OLD version was a flat 4-tier lookup where
+    anything past 5ft scored a fixed 14 no matter how much rougher
+    it got (6ft and 20ft scored identically), PLUS it force-capped
+    the score to 24 whenever ANY marine alert was active — even a
+    calm day under a Small Craft Advisory would score like a rough
+    one. Both of those were caught directly from a live screenshot
+    (2026-07-24): a real 1.3ft, calm day scored "24" only because an
+    advisory happened to be active elsewhere in the forecast window.
+
+    NEW: a smooth curve that keeps responding all the way past 12ft,
+    and NO alert-based override — this factor now reflects real,
+    measured or forecast wave height ONLY. Safety messaging for
+    rough/dangerous conditions is handled separately by the Small
+    Craft Advisory banner (unchanged) and the new Beach Hazards
+    Statement banner — not by silently distorting this score."""
     if wave_ft <= 1.5:
-        score = 90
-    elif wave_ft <= 3:
-        score = 72
-    elif wave_ft <= 5:
-        score = 38
-    else:
-        score = 14
-    if alert_active:
-        score = min(score, 24)
-    return round(score)
+        return 90
+    if wave_ft <= 3:
+        return round(_interp(wave_ft, 1.5, 3, 90, 72))
+    if wave_ft <= 5:
+        return round(_interp(wave_ft, 3, 5, 72, 38))
+    if wave_ft <= 8:
+        return round(_interp(wave_ft, 5, 8, 38, 14))
+    if wave_ft <= 12:
+        return round(_interp(wave_ft, 8, 12, 14, 2))
+    return 2
+
+
+# NEW in v9 — the Storm/Clarity factor. This slot has existed in
+# every pier's factor list since v5 but was NEVER computed (always
+# scored None) — every score has really only ever been a 3-factor
+# average, not the intended 4. Turned on for real here.
+#
+# Deliberately built from the FULL alerts list (FIX A), not just the
+# first alert, and deliberately EXCLUDES Beach Hazards Statements —
+# those are about swim/pier safety, not fishing quality, and are
+# shown to visitors via their own separate banner instead.
+_STORM_SEVERITY_KEYWORDS = [
+    ("storm warning", 10),
+    ("hurricane", 2),
+    ("gale", 25),
+    ("small craft", 55),
+    ("dense fog", 65),
+    ("dense smoke", 65),
+]
+
+
+def score_storm_clarity(alerts):
+    """0-100 Storm/Clarity factor. Looks at every active alert for
+    the zone (not just the first) and returns the WORST match among
+    boater/fishing-relevant alert types. Beach Hazards Statements are
+    intentionally ignored here — see module docstring FIX D."""
+    if not alerts:
+        return 90, None
+    worst_score = 90
+    worst_event = None
+    for a in alerts:
+        event = (a.get("event") or "").lower()
+        if "beach hazard" in event:
+            continue  # handled by the separate beach_hazard banner, not this score
+        for keyword, sc in _STORM_SEVERITY_KEYWORDS:
+            if keyword in event and sc < worst_score:
+                worst_score = sc
+                worst_event = a.get("event")
+    return worst_score, worst_event
 
 
 def resolve_water(pier_cfg, output):
@@ -816,6 +1006,8 @@ def build_piers(output):
         forecast = zone.get("forecast", {"available": False})
         alert = zone.get("alert", {"active": False})
         alert_active = bool(alert.get("active"))
+        all_alerts = zone.get("alerts", [])
+        beach_hazard = zone.get("beach_hazard", {"active": False})
 
         # --- Wind factor: first history source in the chain that
         # has real data wins; otherwise fall back to the forecast.
@@ -848,7 +1040,7 @@ def build_piers(output):
                 wind_headline = {"dir": None, "mph": None, "mph_low": None,
                                  "mph_high": None, "source": None, "source_name": None}
 
-        # --- Water factor (FIX 1 + FIX 2 live here).
+        # --- Water factor.
         water = resolve_water(cfg, output)
         if water is not None:
             water_score = score_water(water["temp_f"], water["change_72h_f"])
@@ -856,6 +1048,7 @@ def build_piers(output):
             water_score = None
 
         # --- Waves factor: own buoy reading first, else forecast range.
+        # v9: score_waves() no longer takes alert_active — see FIX C.
         wave_ft = None
         wave_source = None
         buoy = stations.get(cfg["buoy"], {}) if cfg.get("buoy") else {}
@@ -868,8 +1061,12 @@ def build_piers(output):
             wave_ft = (forecast["wave_ft_low"] + forecast["wave_ft_high"]) / 2
             wave_source = "FORECAST"
 
-        # --- Assemble the four factors (weights match the pages:
-        # wind 30, water 30, lake conditions 20, clarity 20).
+        # --- NEW in v9: Storm/Clarity factor, actually computed now.
+        storm_score, storm_event = score_storm_clarity(all_alerts)
+
+        # --- Assemble the four factors (weights: wind 30, water 30,
+        # lake conditions 20, clarity/storm 20 — all four now
+        # genuinely scored as of v9, not three out of four).
         factors = []
         if wind_factor:
             factors.append({
@@ -889,15 +1086,18 @@ def build_piers(output):
                             "source": "MISSING", "source_name": None})
         if wave_ft is not None:
             factors.append({
-                "label": "Lake Conditions", "score": score_waves(wave_ft, alert_active),
+                "label": "Lake Conditions", "score": score_waves(wave_ft),
                 "weight": 20, "source": wave_source, "source_name": None,
             })
         else:
             factors.append({"label": "Lake Conditions", "score": None, "weight": 20,
                             "source": "MISSING", "source_name": None})
-        factors.append({"label": "Clarity / Storm", "score": None, "weight": 20,
-                        "source": "NOT_SCORED", "source_name": None,
-                        "note": "no clarity source yet"})
+        factors.append({
+            "label": "Clarity / Storm", "score": storm_score, "weight": 20,
+            "source": "FORECAST" if storm_event else "LIVE",
+            "source_name": storm_event,
+            "note": None if storm_event else "no active storm-relevant alert",
+        })
 
         # --- Weighted total over the factors that actually scored.
         scored = [f for f in factors if f["score"] is not None]
@@ -908,7 +1108,7 @@ def build_piers(output):
         incomplete = False
         capped = {"active": False, "reason": None}
         if score is not None and water is not None:
-            # FIX 2: warm-water hard caps apply to ANY temp source.
+            # Warm-water hard caps apply to ANY temp source.
             t = water["temp_f"]
             uncapped_score = score
             if t >= 74:
@@ -920,16 +1120,13 @@ def build_piers(output):
             elif t >= 68:
                 score = min(score, 44)
             if score < uncapped_score:
-                # NEW: expose that a cap actually fired (not just that
-                # the pier happens to be warm) so the frontend can show
-                # a badge without re-deriving the threshold itself.
                 capped = {
                     "active": True,
                     "reason": "Score capped \u2014 water is too warm for strong salmon and trout activity right now.",
                 }
         if score is not None and water is None:
-            # FIX 1: no water temp from any source -> capped and
-            # visibly marked incomplete, never quietly stretched.
+            # No water temp from any source -> capped and visibly
+            # marked incomplete, never quietly stretched.
             score = min(score, 55)
             incomplete = True
 
@@ -946,6 +1143,11 @@ def build_piers(output):
             "estimated_factors": estimated_labels,
             "factors": factors,
             "alert_active": alert_active,
+            # NEW in v9: pier-level pass-through so the frontend never
+            # has to dig into the raw zones section to build the
+            # Beach Hazards banner — matches the existing pattern
+            # used for "capped".
+            "beach_hazard": beach_hazard,
             "headline": {
                 "water_temp_f": water["temp_f"] if water else None,
                 "water_temp_source": water["source"] if water else None,
@@ -1016,9 +1218,15 @@ def main():
         except Exception as err:
             zone_result["forecast"] = {"available": False, "error": str(err)}
         try:
-            zone_result["alert"] = fetch_zone_alerts(zone_id)
+            alert_result = fetch_zone_alerts(zone_id)
         except Exception as err:
-            zone_result["alert"] = {"active": False, "error": str(err)}
+            alert_result = {"active": False, "error": str(err), "alerts": [],
+                             "beach_hazard": {"active": False}}
+        zone_result["alert"] = {
+            k: v for k, v in alert_result.items() if k not in ("alerts", "beach_hazard")
+        }
+        zone_result["alerts"] = alert_result.get("alerts", [])
+        zone_result["beach_hazard"] = alert_result.get("beach_hazard", {"active": False})
         for codename in meta.get("codenames", [meta.get("codename", zone_id)]):
             output["zones"][codename] = zone_result
 
@@ -1030,9 +1238,9 @@ def main():
         result["label"] = meta["label"]
         output["satellite_water_temp"][point_id] = result
 
-    # --- New in v5: finished per-pier scores + data-contract fields.
-    # Added AFTER all raw sections so it works purely from data
-    # already collected above (no extra network requests).
+    # --- Finished per-pier scores + data-contract fields. Added
+    # AFTER all raw sections so it works purely from data already
+    # collected above (no extra network requests).
     output["schema_version"] = SCHEMA_VERSION
     output["stale_after_hours"] = STALE_AFTER_HOURS
     output["piers"] = build_piers(output)
