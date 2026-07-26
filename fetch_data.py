@@ -125,24 +125,119 @@ day, because ANY active marine alert force-capped Lake Conditions to
   The JSON *structure* itself remains additive: no key was removed or
   renamed, "alert" (singular, first-found) still works exactly as
   before for anything still reading it.
+
+Updated 2026-07-26 (v10, station geography - Phase 1.2 of the honesty
+rebuild). This release adds NO new data source and changes NO score. It
+answers one question the site could not previously answer: WHERE is each
+number actually measured, and how far is that from the pier?
+
+  WHY IT MATTERED - buoy 45210 was labelled "Two Rivers / Manitowoc area
+  buoy" and all six piers read it. NOAA's own station table calls it
+  "Rawley Point East, WI". It floats 26 miles off Two Rivers in 475 ft of
+  water, and Sturgeon Bay - 52 miles away - displays its reading as
+  Sturgeon Bay's water temperature. None of that was visible in the code
+  or on the site. Decision D14 requires a real distance on every measured
+  value, computed by the backend and never hand-written. Until now the
+  backend had no coordinates to compute from.
+
+  WHAT CHANGED
+  1. Every station in STATIONS and STATION_HISTORY carries its real
+     published lat/lon. NOT typed from memory - fetched from NOAA by
+     station-coordinates-probe-2026-07-26-v1.py, run inside GitHub
+     Actions on 2026-07-26, cross-checked between two NOAA sources.
+  2. Every pier in PIERS carries its verified lat/lon (confirmed against
+     a map by the owner on 2026-07-25, decision D63).
+  3. NEW haversine_miles() computes real great-circle distances.
+  4. Buoy 45210 relabelled to its true NOAA name.
+  5. KSUE's label had "about 7 miles from the canal pier" hand-written
+     into it. The real computed distance is 6.4 mi. The hand-written
+     figure is removed - distance now comes from calculation, per D14.
+  6. Removed a DEAD reference: Two Rivers' water_fallbacks listed a
+     source codenamed "kw1" that is defined nowhere in STATIONS. It
+     silently resolved to nothing on every run while making the config
+     look as though Two Rivers had a Kewaunee backup. It had none.
+  7. resolve_water() now also reports WHICH source it used, so the
+     distance to that specific source can be computed.
+
+  NEW OUTPUT KEYS (all additive - no existing key changes value):
+    stations.<code>.lat / .lon / .water_depth_ft
+    station_history.<code>.lat / .lon
+    piers.<pier>.coordinates                          {lat, lon}
+    piers.<pier>.headline.water_temp_station_label
+    piers.<pier>.headline.water_temp_distance_mi
+    piers.<pier>.headline.wind_station_label
+    piers.<pier>.headline.wind_distance_mi
+
+  WHY DISTANCE LIVES ON THE PIER, NOT THE STATION: one station can serve
+  two piers at different distances. KMTW is 5.9 mi from Two Rivers and
+  3.5 mi from Manitowoc. A single distance stored on the station would be
+  wrong for one of them.
+
+  MECHANISM FACT - for BUOYS trust the NDBC station table, not the NWS
+  API. The NWS API rounds buoy positions to one decimal place: it
+  reported 45210 at 44.100/-87.100 when the true position is
+  44.055/-87.050, a 4-mile error. For LAND AIRPORT stations the reverse
+  holds - the NWS API gives full precision and the NDBC table does not
+  list them at all.
+
+  SECOND MECHANISM FACT - the "elevation" the NWS API returns for a lake
+  buoy (about 176 m) is the LAKE SURFACE height above sea level, NOT the
+  water depth under the buoy. Publishing it as depth would look entirely
+  plausible and be completely wrong.
 """
 
-# File: fetch-data-v9-wave-curve-storm-factor-beach-hazards.py
-# Delivered: 2026-07-24 (v9 — wave curve, real Storm/Clarity factor,
-#            Beach Hazards Statement banner, all-alerts fetch)
+# File: fetch-data-2026-07-26-v10-station-geography.py
+# Delivered: 2026-07-26 (v10 — station geography: real published
+#            coordinates for every station, computed pier-to-station
+#            distances, corrected buoy 45210 label, dead "kw1" removed)
 
 import json
 import re
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from math import asin, cos, radians, sin, sqrt
 
 # ---------------------------------------------------------------
 # 1. Buoy stations — direct sensor readings.
 # ---------------------------------------------------------------
+#     v10: every entry now carries its REAL published position, fetched
+#     from NOAA (see the module docstring). Buoy positions come from the
+#     NDBC station table because the NWS API rounds them.
 STATIONS = {
-    "45210": {"label": "Two Rivers / Manitowoc area buoy", "codenames": ["tr1", "mt1"]},
-    "SGNW3": {"label": "Sheboygan station"},
-    "45002": {"label": "Washington Island area buoy"},
+    # NOAA's station table names this "Rawley Point East, WI (269)". It
+    # is NOT a Two Rivers or Manitowoc buoy - it floats 26 miles off Two
+    # Rivers in deep open water, and all six piers currently read it.
+    # The old label hid that completely.
+    "45210": {
+        "label": "Rawley Point East buoy (NDBC 45210) \u2014 open lake, deep water",
+        "codenames": ["tr1", "mt1"],
+        "lat": 44.055,
+        "lon": -87.050,
+        # 145 m, verified during the 2026-07-24 honesty investigation.
+        # This is WATER DEPTH. Do not confuse it with the ~176 m
+        # "elevation" the NWS API reports, which is the lake surface
+        # height above sea level.
+        "water_depth_ft": 475,
+    },
+    # 0.26 mi from the Sheboygan pier - genuinely local. Reports wind and
+    # air temperature, but its water-temperature field is empty, which is
+    # why Sheboygan currently borrows water from 38 miles away.
+    "SGNW3": {
+        "label": "Sheboygan, WI shore station (NDBC SGNW3)",
+        "lat": 43.749,
+        "lon": -87.693,
+        "water_depth_ft": None,
+    },
+    # NOAA's table: "NORTH MICHIGAN - Halfway between North Manitou and
+    # Washington Islands." The existing label was accurate, so it stays.
+    "45002": {
+        "label": "North Michigan buoy (NDBC 45002) \u2014 Washington Island area",
+        "lat": 45.344,
+        "lon": -86.411,
+        # Not published in any machine-readable form NOAA gave us.
+        # Left unknown rather than guessed.
+        "water_depth_ft": None,
+    },
 }
 
 NDBC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
@@ -155,14 +250,36 @@ NDBC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
 #     a guess — but it is measured a few miles from the pier, not
 #     right at the water, so it's labeled honestly on the page.
 # ---------------------------------------------------------------
+#     v10: real published positions added. Airport positions come from
+#     the NWS API (full precision); the dormant shore stations are not
+#     in the NWS API at all and come from the NDBC station table.
 STATION_HISTORY = {
-    "KMTW": {"label": "Manitowoc Airport", "codenames": ["trw", "mtw"]},
-    "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)"},
-    "KWNW3": {"label": "Kewaunee MET station (nearest continuously-reporting wind station)", "codenames": ["kww"]},
-    "KSUE": {"label": "Door County Cherryland Airport, Sturgeon Bay (nearest continuously-reporting wind station, about 7 miles from the canal pier)"},
-    "AGMW3": {"label": "Algoma City Marina, WI (dormant \u2014 NOAA has not transmitted data from this station since approximately 2017; wired here so it activates automatically with no code changes if the station ever comes back online)", "codenames": ["agw"]},
-    "0Y2W3": {"label": "Sturgeon Bay CG Station, WI (dormant \u2014 no data currently transmitted; wired here so it activates automatically with no code changes if the station ever comes back online)", "codenames": ["sbcg"]},
-    "C58W3": {"label": "Two Rivers CG Station, WI (dormant \u2014 no data currently transmitted; wired here for completeness, though Two Rivers already has solid live coverage via buoy 45210 and KMTW)", "codenames": ["trcg"]},
+    # 5.9 mi from the Two Rivers pier, 3.5 mi from the Manitowoc pier -
+    # a good illustration of why distance must be stored per PIER, not
+    # per station.
+    "KMTW": {"label": "Manitowoc Airport", "codenames": ["trw", "mtw"],
+             "lat": 44.13333, "lon": -87.68333},
+    "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)",
+             "lat": 43.77483, "lon": -87.84897},
+    # 0.55 mi from the Kewaunee pier - a genuinely local wind reading,
+    # closer to the water than any airport station on this coast.
+    "KWNW3": {"label": "Kewaunee MET station (nearest continuously-reporting wind station)", "codenames": ["kww"],
+              "lat": 44.465, "lon": -87.49572},
+    # v10: the phrase "about 7 miles from the canal pier" was removed
+    # from this label. It was hand-written; the real computed distance
+    # is 6.4 mi. Distance now comes from the calculation (D14).
+    "KSUE": {"label": "Door County Cherryland Airport, Sturgeon Bay (nearest continuously-reporting wind station)",
+             "lat": 44.83941, "lon": -87.42188},
+    # The three dormant stations below all sit essentially ON their
+    # piers - AGMW3 0.04 mi, 0Y2W3 0.21 mi, C58W3 0.15 mi. If NOAA ever
+    # revives any of them it would instantly become the best wind source
+    # on that pier. They stay wired for exactly that reason.
+    "AGMW3": {"label": "Algoma City Marina, WI (dormant \u2014 NOAA has not transmitted data from this station since approximately 2017; wired here so it activates automatically with no code changes if the station ever comes back online)", "codenames": ["agw"],
+              "lat": 44.608, "lon": -87.433},
+    "0Y2W3": {"label": "Sturgeon Bay CG Station, WI (dormant \u2014 no data currently transmitted; wired here so it activates automatically with no code changes if the station ever comes back online)", "codenames": ["sbcg"],
+              "lat": 44.794, "lon": -87.313},
+    "C58W3": {"label": "Two Rivers CG Station, WI (dormant \u2014 no data currently transmitted; wired here for completeness, though Two Rivers already has solid live coverage via buoy 45210 and KMTW)", "codenames": ["trcg"],
+              "lat": 44.146, "lon": -87.563},
 }
 
 NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
@@ -712,17 +829,32 @@ STALE_AFTER_HOURS = 3
 #                   (key, None) = the pier's own station,
 #                   (key, "Name") = borrowed from a neighbor, labeled ESTIMATED
 #   zone            key in output["zones"] for forecast + alerts
+#   lat / lon       v10: the pier's own verified position. All six were
+#                   confirmed against a map by the owner on 2026-07-25
+#                   (decision D63). Algoma's point is the City Marina
+#                   BY DESIGN - there is no separate pier landmark
+#                   there, the marina is where the piers are. Do not
+#                   "correct" it.
 PIERS = {
     "two_rivers": {
         "name": "Two Rivers / Neshotah",
+        "lat": 44.147061,
+        "lon": -87.565680,
         "buoy": "tr1",
         "satellite": None,
-        "water_fallbacks": [("station", "mt1", "Manitowoc"), ("station", "kw1", "Kewaunee")],
+        # v10: the second entry used to be ("station", "kw1", "Kewaunee").
+        # No station anywhere in STATIONS carries the codename "kw1", so
+        # that fallback silently resolved to nothing on every single run
+        # while making the config look as though Two Rivers had a
+        # Kewaunee backup. It never did. Removed.
+        "water_fallbacks": [("station", "mt1", "Manitowoc")],
         "wind_history": [("trw", None)],
         "zone": "trz",
     },
     "manitowoc": {
         "name": "Manitowoc",
+        "lat": 44.091354,
+        "lon": -87.643820,
         "buoy": "mt1",
         "satellite": "manitowoc",
         "water_fallbacks": [],
@@ -731,6 +863,8 @@ PIERS = {
     },
     "sheboygan": {
         "name": "Sheboygan",
+        "lat": 43.748595,
+        "lon": -87.694910,
         "buoy": "SGNW3",
         "satellite": "sheboygan",
         "water_fallbacks": [("station", "mt1", "Manitowoc"), ("station", "tr1", "Two Rivers")],
@@ -739,6 +873,8 @@ PIERS = {
     },
     "kewaunee": {
         "name": "Kewaunee",
+        "lat": 44.457285,
+        "lon": -87.493085,
         "buoy": None,
         "satellite": "kewaunee",
         "water_fallbacks": [("station", "tr1", "Two Rivers"), ("station", "mt1", "Manitowoc")],
@@ -747,6 +883,10 @@ PIERS = {
     },
     "algoma": {
         "name": "Algoma",
+        # City of Algoma Marina - confirmed by the owner as the correct
+        # point. There is no separate pier landmark at Algoma.
+        "lat": 44.608423,
+        "lon": -87.433597,
         "buoy": None,
         "satellite": "algoma",
         # Deliberate design decision (matches the live Algoma page):
@@ -780,6 +920,8 @@ PIERS = {
         #   Michigan) — a genuinely independent backup, honestly
         #   labeled.
         "name": "Sturgeon Bay",
+        "lat": 44.792050,
+        "lon": -87.309627,
         "buoy": None,
         "satellite": None,
         "water_fallbacks": [
@@ -793,6 +935,63 @@ PIERS = {
 
 # Compass direction -> degrees, built from the COMPASS list above.
 _COMPASS_DEG = {name: idx * 22.5 for idx, name in enumerate(COMPASS)}
+
+
+# ---------------------------------------------------------------
+# v10 - REAL DISTANCE. Project decision D14: every measured value
+# shown on the site must carry a distance, computed here in the
+# backend and never hand-written into a label. This is the function
+# that makes that possible.
+# ---------------------------------------------------------------
+EARTH_RADIUS_MILES = 3958.7613
+
+
+def haversine_miles(lat1, lon1, lat2, lon2):
+    """Great-circle distance in statute miles between two points.
+
+    Returns None if any coordinate is missing, so a station without a
+    recorded position produces "no distance" rather than a wrong one.
+    """
+    if None in (lat1, lon1, lat2, lon2):
+        return None
+    d_lat = radians(lat2 - lat1)
+    d_lon = radians(lon2 - lon1)
+    a = (sin(d_lat / 2) ** 2
+         + cos(radians(lat1)) * cos(radians(lat2)) * sin(d_lon / 2) ** 2)
+    return round(2 * EARTH_RADIUS_MILES * asin(sqrt(a)), 2)
+
+
+def _geo_by_codename(config):
+    """Flatten a station config into codename -> {lat, lon, label, ...}.
+
+    One physical station can answer to several codenames (buoy 45210 is
+    both "tr1" and "mt1"), so every codename gets the same position.
+    """
+    out = {}
+    for station_id, meta in config.items():
+        entry = {
+            "station_id": station_id,
+            "label": meta.get("label"),
+            "lat": meta.get("lat"),
+            "lon": meta.get("lon"),
+            "water_depth_ft": meta.get("water_depth_ft"),
+        }
+        for codename in meta.get("codenames", [meta.get("codename", station_id)]):
+            out[codename] = entry
+    return out
+
+
+STATION_GEO = _geo_by_codename(STATIONS)
+HISTORY_GEO = _geo_by_codename(STATION_HISTORY)
+
+
+def distance_from_pier(pier_cfg, geo_map, codename):
+    """Miles from this pier to the station behind `codename`."""
+    station = geo_map.get(codename)
+    if not station:
+        return None
+    return haversine_miles(pier_cfg.get("lat"), pier_cfg.get("lon"),
+                           station.get("lat"), station.get("lon"))
 
 
 def clamp(value, low, high):
@@ -947,6 +1146,10 @@ def resolve_water(pier_cfg, output):
                 "temp_f": own["water_temp_f"],
                 "source": "LIVE",
                 "source_name": None,
+                # v10: which source actually supplied this reading, so
+                # the distance to THAT source can be computed.
+                "source_key": buoy_key,
+                "source_kind": "station",
                 "change_24h_f": own.get("water_change_24h_f"),
                 "change_72h_f": own.get("water_change_72h_f"),
             }
@@ -959,6 +1162,8 @@ def resolve_water(pier_cfg, output):
                 "temp_f": sat["water_temp_f"],
                 "source": "SATELLITE",
                 "source_name": None,
+                "source_key": sat_key,
+                "source_kind": "satellite",
                 "change_24h_f": None,
                 "change_72h_f": None,
             }
@@ -971,6 +1176,8 @@ def resolve_water(pier_cfg, output):
                 "temp_f": src["water_temp_f"],
                 "source": "ESTIMATED",
                 "source_name": name,
+                "source_key": key,
+                "source_kind": kind,
                 "change_24h_f": None,
                 "change_72h_f": None,
             }
@@ -1012,6 +1219,7 @@ def build_piers(output):
         # --- Wind factor: first history source in the chain that
         # has real data wins; otherwise fall back to the forecast.
         wind_factor = None
+        wind_hist_key = None   # v10: which station actually supplied wind
         for hist_key, borrowed_from in cfg.get("wind_history", []):
             hist = histories.get(hist_key)
             if hist and hist.get("available") and hist.get("hourly"):
@@ -1024,6 +1232,7 @@ def build_piers(output):
                     "source": wind_factor["source"],
                     "source_name": wind_factor.get("source_name"),
                 }
+                wind_hist_key = hist_key
                 break
         else:
             wind_factor = score_wind(None, forecast, None)
@@ -1063,6 +1272,34 @@ def build_piers(output):
 
         # --- NEW in v9: Storm/Clarity factor, actually computed now.
         storm_score, storm_event = score_storm_clarity(all_alerts)
+
+        # --- NEW in v10: where these numbers physically came from, and
+        # how far that is from this pier. Satellite points are grid
+        # cells rather than instruments, so they get a label but no
+        # distance - claiming a distance to a model cell would be the
+        # same kind of false precision this release exists to remove.
+        water_station_label = None
+        water_distance_mi = None
+        if water is not None:
+            if water.get("source_kind") == "station":
+                geo = STATION_GEO.get(water.get("source_key"))
+                if geo:
+                    water_station_label = geo.get("label")
+                    water_distance_mi = distance_from_pier(
+                        cfg, STATION_GEO, water["source_key"])
+            elif water.get("source_kind") == "satellite":
+                sat_meta = output.get("satellite_water_temp", {}).get(
+                    water.get("source_key"), {})
+                water_station_label = sat_meta.get("label")
+
+        wind_station_label = None
+        wind_distance_mi = None
+        if wind_hist_key:
+            geo = HISTORY_GEO.get(wind_hist_key)
+            if geo:
+                wind_station_label = geo.get("label")
+                wind_distance_mi = distance_from_pier(
+                    cfg, HISTORY_GEO, wind_hist_key)
 
         # --- Assemble the four factors (weights: wind 30, water 30,
         # lake conditions 20, clarity/storm 20 — all four now
@@ -1148,13 +1385,22 @@ def build_piers(output):
             # Beach Hazards banner — matches the existing pattern
             # used for "capped".
             "beach_hazard": beach_hazard,
+            "coordinates": {"lat": cfg.get("lat"), "lon": cfg.get("lon")},
             "headline": {
                 "water_temp_f": water["temp_f"] if water else None,
                 "water_temp_source": water["source"] if water else None,
                 "water_temp_from": water["source_name"] if water else None,
+                # v10 (D14): the station actually behind this reading,
+                # and how far it is from THIS pier. Computed, never
+                # hand-written. None when the source has no recorded
+                # position - "no distance" beats a wrong distance.
+                "water_temp_station_label": water_station_label,
+                "water_temp_distance_mi": water_distance_mi,
                 "water_change_24h_f": water["change_24h_f"] if water else None,
                 "water_change_72h_f": water["change_72h_f"] if water else None,
                 "wind": wind_headline,
+                "wind_station_label": wind_station_label,
+                "wind_distance_mi": wind_distance_mi,
                 "wave_ft": round(wave_ft, 1) if wave_ft is not None else None,
                 "wave_source": wave_source,
                 "pressure_hpa": buoy.get("pressure_hpa") if buoy.get("available") else None,
@@ -1196,6 +1442,12 @@ def main():
         except Exception as err:
             summary = {"available": False, "error": str(err)}
         summary["label"] = meta["label"]
+        # v10: the station's real published position travels with its
+        # reading, so "where did this come from" is answerable from the
+        # data itself rather than from a descriptive string.
+        summary["lat"] = meta.get("lat")
+        summary["lon"] = meta.get("lon")
+        summary["water_depth_ft"] = meta.get("water_depth_ft")
         # A single physical station can feed more than one pier (e.g. a
         # shared buoy) — write the same reading under every codename that
         # points to it, without fetching it twice.
@@ -1208,6 +1460,8 @@ def main():
         except Exception as err:
             history = {"available": False, "error": str(err)}
         history["label"] = meta["label"]
+        history["lat"] = meta.get("lat")
+        history["lon"] = meta.get("lon")
         for codename in meta.get("codenames", [meta.get("codename", station_id)]):
             output["station_history"][codename] = history
 
