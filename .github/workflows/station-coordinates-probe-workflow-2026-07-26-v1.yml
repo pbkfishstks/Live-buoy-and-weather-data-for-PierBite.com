@@ -1,0 +1,31 @@
+# PierBite.com - Station Coordinates Probe - workflow file
+# Delivered: 2026-07-26  |  v1
+# Pairs with: station-coordinates-probe-2026-07-26-v1.py
+#
+# Manual button only. No schedule. Read-only permissions - this
+# workflow cannot commit, cannot change data.json, and cannot touch
+# the live site. It only prints information to the screen.
+
+name: Station Coordinates Probe v1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  look-up-where-each-station-is:
+    name: Look up published position of every PierBite station
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the repository files
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run the station coordinates probe
+        run: python station-coordinates-probe-2026-07-26-v1.py
