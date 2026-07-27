@@ -1,0 +1,43 @@
+# PierBite.com — LMHOFS History Probe (manual, one-off diagnostic)
+# Generated: 2026-07-27, v3
+# ==================================================================
+# This file gives you a "Run workflow" button that runs
+# lmhofs-history-probe-2026-07-27-v3.py on demand.
+#
+# v3 change: v1 and v2's jitter test (Q3) compared the WRONG thing —
+# two runs at different moments in time, which mostly measures real
+# overnight cooling, not model noise. v3 first checks whether NOAA
+# publishes forecast-hour files for this model, then (if so) runs the
+# CORRECT test: an earlier run's forecast for a future hour, compared
+# against a later run's actual analysis for that same hour. Both
+# describe the identical moment, so any difference is genuine model
+# jitter. If no forecast files exist, v3 says so plainly instead of
+# reporting a wrong number.
+#
+# It does NOT run on a schedule, and it does NOT change anything in
+# the repository — it only prints a report you read in the log.
+#
+# This file must be placed at exactly this path in the repository:
+#   .github/workflows/lmhofs-history-probe-2026-07-27-v3.yml
+# (GitHub only looks for workflow files in that exact folder.)
+# ==================================================================
+
+name: LMHOFS History Probe
+
+on:
+  workflow_dispatch:   # manual only — click "Run workflow" to use it
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the repository files
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run the LMHOFS history probe
+        run: python lmhofs-history-probe-2026-07-27-v3.py
