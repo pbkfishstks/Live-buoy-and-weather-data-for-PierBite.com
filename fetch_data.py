@@ -287,7 +287,7 @@ toward. It changes what number the site publishes, on purpose.
   distance to its pier verified against LMHOFS_MAX_NODE_DRIFT_MI. Either
   check failing means the reading is refused, not published.
 
-  DELIBERATELY NOT IN THIS RELEASE
+  DELIBERATELY NOT IN THIS RELEASE (v11)
   - The warm-water cap still applies to any temperature source. Once
     real nearshore values (53.8-58.6 F on 2026-07-25) replace the buoy,
     no cap tier should fire at all and the cap should simply stop
@@ -300,14 +300,32 @@ toward. It changes what number the site publishes, on purpose.
     does not happen - so this drops a spurious input rather than a real
     one. Rebuilding it as a genuine nearshore trend from older model
     runs is Phase 1.3c.
+
+Updated 2026-07-27 (v12, Phase 1.3b — warm-water cap restricted to
+nearshore readings): the cap block now checks water["source"] ==
+"MODELED" before applying any of the four warm-water tiers. Previously
+it fired on ANY source, including LIVE (the own buoy, 26-52 mi
+offshore in deep water) and ESTIMATED (a neighboring pier's station).
+A warm reading from open water or a neighbor's shoreline says nothing
+true about temperature at THIS pier, so it must not suppress this
+pier's score. NO EFFECT ON TODAY'S LIVE SCORES - real MODELED
+nearshore temperatures (53.8-58.6 F) sit well under the 68 F floor, so
+the cap was already firing nowhere per v11's own validation. This
+deploy only changes behavior on a future day when LMHOFS is stale
+(>36h, D82) AND a pier has fallen back to its buoy AND that buoy reads
+>=68 F - previously that fallback reading would have wrongly capped
+the score; now it will not. PURELY ADDITIVE: no output key added,
+removed, or renamed; only the internal firing condition of the
+existing "capped" object changed (D18, D84).
 """
 
-# File: fetch-data-2026-07-27-v11-lmhofs-nearshore-water-temperature.py
-# Delivered: 2026-07-27 (v11 — Phase 1.3a: nearshore water temperature
-#            from NOAA LMHOFS, staleness policy, HOT PIER badge kept
-#            alive, verified_count corrected, wave station + distance,
-#            open-lake context, config self-audit)
-# Supersedes: fetch-data-2026-07-26-v10-station-geography.py
+# File: fetch-data-2026-07-27-v12-warm-cap-nearshore-only.py
+# Delivered: 2026-07-27 (v12 — Phase 1.3b: warm-water cap now fires
+#            ONLY on a MODELED/nearshore reading, never on a LIVE
+#            offshore buoy or an ESTIMATED/borrowed reading. See D18,
+#            D84. No output key changed; no effect on today's live
+#            scores.)
+# Supersedes: fetch-data-2026-07-27-v11-lmhofs-nearshore-water-temperature.py
 
 import json
 import re
@@ -1945,8 +1963,21 @@ def build_piers(output):
 
         incomplete = False
         capped = {"active": False, "reason": None}
-        if score is not None and water is not None:
-            # Warm-water hard caps apply to ANY temp source.
+        # v12 — Phase 1.3b (D18, D84). The cap now fires ONLY on a
+        # MODELED reading — the LMHOFS nearshore node actually at the
+        # pier. It does NOT fire on LIVE (the own buoy, 26-52 mi
+        # offshore), SATELLITE, or ESTIMATED (borrowed from a
+        # neighboring pier's station). A warm reading from open water
+        # or a neighbor's station says nothing true about temperature
+        # at THIS pier's shoreline, so it must not silently suppress
+        # this pier's score. Deliberately conservative: on a day
+        # LMHOFS is stale (>36h, see D82) and a pier falls back to its
+        # buoy, the cap simply does not apply to that fallback reading
+        # rather than guessing whether it would have. Most days this
+        # changes nothing (real nearshore temps are 53.8-58.6 F, well
+        # under the 68 F floor) — it only matters on stale-model days,
+        # which is why it ships as its own deploy (C5).
+        if score is not None and water is not None and water["source"] == "MODELED":
             t = water["temp_f"]
             uncapped_score = score
             if t >= 74:
