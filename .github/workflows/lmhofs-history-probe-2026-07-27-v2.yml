@@ -1,0 +1,39 @@
+# ==================================================================
+# PierBite.com — LMHOFS History Probe (manual, one-off diagnostic)
+# Generated: 2026-07-27, updated 2026-07-27 v2
+# ==================================================================
+# This file gives you a "Run workflow" button that runs
+# lmhofs-history-probe-2026-07-27-v2.py on demand.
+#
+# v2 change: points at v2.py, which fixes a bug in v1.py where the
+# missing lmhofs_escape() call caused every node read to fail with
+# HTTP 400. v1.py's results are unreliable for Q2/Q3 — only Q1
+# (retention) from that run should be trusted.
+#
+# It does NOT run on a schedule, and it does NOT change anything in
+# the repository — it only prints a report you read in the log.
+#
+# This file must be placed at exactly this path in the repository:
+#   .github/workflows/lmhofs-history-probe-2026-07-27-v2.yml
+# (GitHub only looks for workflow files in that exact folder.)
+# ==================================================================
+
+name: LMHOFS History Probe
+
+on:
+  workflow_dispatch:   # manual only — click "Run workflow" to use it
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the repository files
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run the LMHOFS history probe
+        run: python lmhofs-history-probe-2026-07-27-v2.py
