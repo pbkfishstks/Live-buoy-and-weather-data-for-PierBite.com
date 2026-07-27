@@ -184,12 +184,130 @@ number actually measured, and how far is that from the pier?
   buoy (about 176 m) is the LAKE SURFACE height above sea level, NOT the
   water depth under the buoy. Publishing it as depth would look entirely
   plausible and be completely wrong.
+
+Updated 2026-07-27 (v11, Phase 1.3a - NEARSHORE WATER TEMPERATURE FROM
+LMHOFS). This is the release the whole honesty rebuild was building
+toward. It changes what number the site publishes, on purpose.
+
+  THE PROBLEM IT FIXES - all six piers read their water temperature
+  from ONE buoy: NDBC 45210, "Rawley Point East", floating 26 miles off
+  Two Rivers in 475 feet of open water. Sturgeon Bay displayed that
+  same reading from 52 miles away. Deep open lake and a 7-foot-deep
+  pier are not the same body of water. Measured 2026-07-25, the buoy
+  read roughly 12-18 F WARMER than the actual nearshore temperature at
+  the piers. Because the scoring engine applies a tiered warm-water cap,
+  that single wrong number pinned every pier on the site to an identical
+  score - 44 for weeks, then 28, then 44 again - which looked to a
+  visitor like fabricated data. It was real. It was just measured in the
+  wrong place.
+
+  THE FIX - NOAA's Lake Michigan-Huron Operational Forecast System
+  (LMHOFS) is a 3D hydrodynamic model on an unstructured mesh of 90,806
+  nodes, with roughly 50 m resolution along the shoreline. It simulates
+  upwelling, which is the exact phenomenon this site exists to report.
+  Six mesh nodes - one per pier, the closest 0.012 mi and the farthest
+  0.249 mi from the pier itself - now supply water temperature ahead of
+  any buoy in the chain.
+
+  THIS IS LABELLED "MODELED", NEVER "MEASURED" (project constraint C13,
+  decision D64). It was validated against buoy 45210's own thermometer
+  on 2026-07-25 and agreed within 2 F. Validation raised confidence in
+  the model. It did not turn a simulation into a thermometer.
+
+  WHAT CHANGED
+  1. NEW fetch_lmhofs() - locates a live model run, reads temperature
+     plus each node's OWN published lat/lon, and computes the real
+     pier-to-node distance from those fetched coordinates. Nothing is
+     hand-written, not even the node positions (C19).
+  2. resolve_water() now tries LMHOFS FIRST, ahead of the local buoy.
+     New source tier "MODELED" / source_kind "model".
+  3. STALENESS POLICY (decision D82) - under 12 h: normal. 12 to 36 h:
+     still used, and the model run age is published so a page can
+     disclose it. Over 36 h, or unreachable: LMHOFS is skipped entirely
+     and the pier falls through to its existing chain with the real
+     distance shown. Rationale: 12 h absorbs one or two missed NOAA
+     cycles invisibly; beyond 36 h the model is describing a different
+     weather regime, because upwelling can set up and collapse inside a
+     single day. Falling through to a clearly-labelled distant buoy is
+     more honest than six piers all reporting "unknown".
+  4. compute_hot_piers() now accepts MODELED as well as LIVE (D83).
+     WITHOUT THIS THE BADGE VANISHES SITEWIDE THE MOMENT THIS DEPLOYS -
+     silently, with nothing in the logs, because no pier would report
+     LIVE water any more. Found by tracing the consequence before
+     deploying rather than after.
+  5. verified_count FIXED (risk R26). It was computed as "scored factors
+     minus ESTIMATED factors", so a FORECAST factor counted as verified
+     - and a MODELED one would have too. The frontend prints this number
+     as "N of 4 factors measured live". Sheboygan was claiming 3 when
+     only 1 factor was genuinely measured. It now counts ONLY factors
+     whose source is literally LIVE. THIS LOWERS THE NUMBER ON FOUR
+     PIERS TODAY. That is a correction, not a regression.
+  6. NEW headline keys wave_station_label and wave_distance_mi (D86).
+     The Two Rivers pier boxes are already written to consume them.
+  7. NEW output["open_lake_context"] - buoy 45210's reading published
+     BESIDE the nearshore model value, with the gap between them. The
+     buoy stops being a temperature source here but keeps earning its
+     place: that gap is the visible evidence of upwelling. Costs no
+     extra request; the buoy is fetched anyway.
+  8. NEW validate_config() - every codename referenced by a pier is
+     checked against the config that defines it. The dead "kw1"
+     reference removed in v10 had resolved silently to nothing for
+     months and NOTHING FAILED, because nothing could. Findings are
+     printed and published under output["config_warnings"]. Deliberately
+     warns rather than aborts: a stale-but-correct data.json beats an
+     outage.
+
+  MECHANISM FACT - NOAA's THREDDS server runs on Tomcat, which rejects
+  raw "[" and "]" in a query string with HTTP 400. Array slice requests
+  MUST be percent-escaped as %5B / %5D. This hides well: requests with
+  no brackets (?lat, ?lon) succeed either way, so code can look healthy
+  right up until it asks for a data slice.
+
+  SECOND MECHANISM FACT - NOAA does NOT put the word "nowcast" in the
+  FIELDS filenames. "fields.n000.nc" is the nowcast (what happened);
+  "fields.f000.nc" is the forecast. Only the much smaller stations files
+  carry "nowcast" in the name. Filtering fields files on "nowcast"
+  matches nothing at all.
+
+  THIRD MECHANISM FACT - siglay index 0 is the SURFACE layer, confirmed
+  by measurement on 2026-07-25 rather than assumed (D65). Index 0 could
+  just as plausibly have been the lake bed, and would have returned a
+  perfectly believable cold number.
+
+  FOURTH MECHANISM FACT - the file may publish longitude in 0-360 form.
+  Any code reading a node's longitude must subtract 360 when the value
+  exceeds 180, or the point lands in central Asia.
+
+  GUARD AGAINST SILENT MESH RENUMBERING (risk R21) - a frozen node index
+  is only meaningful while NOAA's mesh has the same shape. If the node
+  count is no longer 90,806, the indices point somewhere else entirely
+  and would return a plausible temperature from the wrong place. Two
+  layers of defence: (a) the file's own DDS is read once per run and the
+  node count checked; (b) every node's own lat/lon is fetched and the
+  distance to its pier verified against LMHOFS_MAX_NODE_DRIFT_MI. Either
+  check failing means the reading is refused, not published.
+
+  DELIBERATELY NOT IN THIS RELEASE
+  - The warm-water cap still applies to any temperature source. Once
+    real nearshore values (53.8-58.6 F on 2026-07-25) replace the buoy,
+    no cap tier should fire at all and the cap should simply stop
+    mattering. Restricting it to nearshore readings is Phase 1.3b, a
+    SEPARATE deploy (D84, C5), because it only has any effect on days
+    when the model is stale and a pier has fallen back to the buoy.
+  - The 72-hour water temperature trend is None for a MODELED reading.
+    Note carefully that the trend it replaces was measured at the
+    deep-water buoy, where the nearshore upwelling this site reports
+    does not happen - so this drops a spurious input rather than a real
+    one. Rebuilding it as a genuine nearshore trend from older model
+    runs is Phase 1.3c.
 """
 
-# File: fetch-data-2026-07-26-v10-station-geography.py
-# Delivered: 2026-07-26 (v10 — station geography: real published
-#            coordinates for every station, computed pier-to-station
-#            distances, corrected buoy 45210 label, dead "kw1" removed)
+# File: fetch-data-2026-07-27-v11-lmhofs-nearshore-water-temperature.py
+# Delivered: 2026-07-27 (v11 — Phase 1.3a: nearshore water temperature
+#            from NOAA LMHOFS, staleness policy, HOT PIER badge kept
+#            alive, verified_count corrected, wave station + distance,
+#            open-lake context, config self-audit)
+# Supersedes: fetch-data-2026-07-26-v10-station-geography.py
 
 import json
 import re
@@ -331,6 +449,74 @@ GLSEA_URL_TEMPLATE = (
 )
 GLSEA_USER_AGENT = "PierBiteDotCom (contact: pierbite project owner)"
 GLSEA_MAX_AGE_DAYS = 5  # if the newest satellite reading is older than this, treat it as unavailable
+
+# ---------------------------------------------------------------
+# 1e. LMHOFS — NOAA Lake Michigan–Huron Operational Forecast System.
+#     NEW in v11. This is the primary water-temperature source.
+#
+#     A 3D hydrodynamic model on an unstructured mesh of 90,806 nodes,
+#     roughly 50 m resolution along the shoreline. Unlike a buoy 26
+#     miles out in deep water, it actually simulates the nearshore
+#     upwelling this site exists to report.
+#
+#     THE NODE INDICES BELOW ARE FROZEN. They were derived once, on
+#     2026-07-25, by downloading the full 90,806-point coordinate grid
+#     inside a diagnostic probe and finding the nearest mesh node to
+#     each verified pier position. That download does NOT happen here
+#     and must never be added to production code — each pier costs one
+#     small request precisely because these numbers are already known.
+#     Re-derive them only by re-running lmhofs-water-temp-probe-
+#     2026-07-25-v6.py, which lives in this repository.
+# ---------------------------------------------------------------
+LMHOFS_BASE_DIR = (
+    "https://opendap.co-ops.nos.noaa.gov/thredds/dodsC/"
+    "NOAA/LMHOFS/MODELS/{yyyy}/{mm}/{dd}/"
+)
+# n000 = NOWCAST. f000 would be the forecast. NOAA does not put the
+# word "nowcast" anywhere in this filename — see the module docstring.
+LMHOFS_FIELDS_FILE = "lmhofs.t{cycle}z.{yyyy}{mm}{dd}.fields.n000.nc"
+
+# Model cycles are published at 00, 06, 12 and 18 UTC, but the newest
+# one is not always there. Walk backwards until something answers.
+LMHOFS_CYCLES = ["18", "12", "06", "00"]
+
+# Staleness policy — decision D82. See the module docstring for the
+# reasoning; these two numbers ARE that decision, in code.
+LMHOFS_DISCLOSE_AGE_HOURS = 12   # older than this: still used, age published
+LMHOFS_MAX_AGE_HOURS = 36        # older than this: refused entirely
+
+LMHOFS_TIMEOUT = 60
+LMHOFS_USER_AGENT = "PierBiteDotCom (contact: pierbite project owner)"
+
+# The mesh size this configuration was frozen against. If NOAA ever
+# renumbers or refines the mesh, every index below silently points
+# somewhere else — and would return a completely plausible temperature
+# from the wrong part of the lake. Checked on every run (risk R21).
+LMHOFS_EXPECTED_NODE_COUNT = 90806
+
+# Second layer of the same defence: how far a node is allowed to sit
+# from its pier before the reading is refused. Every frozen node is
+# currently within 0.25 mi, so 2 miles is generous enough never to fire
+# on ordinary mesh refinement, and tight enough to catch renumbering.
+LMHOFS_MAX_NODE_DRIFT_MI = 2.0
+
+# FROZEN — one mesh node per pier. Derived 2026-07-25 from verified
+# pier coordinates (D63). Distances at derivation: Manitowoc 63 ft,
+# Sheboygan 106 ft, Kewaunee 396 ft, Sturgeon Bay 797 ft, Algoma
+# 866 ft, Two Rivers 1,315 ft.
+LMHOFS_NODES = {
+    "sheboygan": 20022,
+    "manitowoc": 21438,
+    "two_rivers": 23983,
+    "kewaunee": 28542,
+    "algoma": 28904,
+    "sturgeon_bay": 31190,
+}
+
+# The model node co-located with buoy 45210 (0.538 mi from the buoy).
+# Not a pier — this is the open-lake comparison point that makes the
+# nearshore-vs-open-lake gap visible. See open_lake_context below.
+LMHOFS_CONTEXT_NODE = 28627
 
 # 16-point compass, in order, starting at North.
 COMPASS = [
@@ -807,6 +993,354 @@ def fetch_glsea_point(lat, lon):
 
 
 # ---------------------------------------------------------------
+# 1f. LMHOFS READERS — new in v11.
+#
+#     Everything below talks to NOAA's OPeNDAP server. Three rules
+#     govern this code and each one cost real time to learn:
+#
+#     1. Brackets in the query string MUST be percent-escaped. Tomcat
+#        returns HTTP 400 for raw "[" and "]". Requests without
+#        brackets succeed either way, so this failure hides until the
+#        first actual data slice.
+#     2. Never download a whole variable. OPeNDAP serves partial
+#        reads — one node's temperature is a few bytes, and the full
+#        grid is 187.9 MB.
+#     3. Trust nothing about the file's shape. Read its own
+#        description and check it.
+# ---------------------------------------------------------------
+
+# Matches any number in an OPeNDAP ascii reply, including exponent form.
+_LMHOFS_NUMBER = re.compile(r"[-+]?\d*\.\d+(?:[eE][-+]?\d+)?|[-+]?\d+(?:[eE][-+]?\d+)?")
+# "[0][0][23983]" style index echoes, stripped before numbers are read.
+_LMHOFS_BRACKETS = re.compile(r"\[[^\]]*\]")
+# The "---------" divider OPeNDAP prints between header and payload.
+_LMHOFS_DIVIDER = re.compile(r"^-{3,}\s*$", re.MULTILINE)
+# "[node = 90806]" style dimension declarations inside a DDS.
+_LMHOFS_DIM = re.compile(r"\[\s*(\w+)\s*=\s*(\d+)\s*\]")
+
+
+def lmhofs_escape(query):
+    """Percent-escape array brackets. NOT optional — see rule 1 above."""
+    return query.replace("[", "%5B").replace("]", "%5D")
+
+
+def lmhofs_get(url, timeout=LMHOFS_TIMEOUT, max_chars=4000):
+    """One OPeNDAP request. Returns (ok, text). Never raises."""
+    req = urllib.request.Request(url, headers={"User-Agent": LMHOFS_USER_AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read(max_chars * 4 if max_chars else None)
+    except Exception as err:  # noqa: BLE001 - any failure means "not available"
+        return False, str(err)
+    text = raw.decode("utf-8", errors="replace")
+    if max_chars is not None and len(text) > max_chars:
+        text = text[:max_chars]
+    return True, text
+
+
+def lmhofs_numbers(text):
+    """Pull the data values out of an OPeNDAP ascii reply.
+
+    The reply repeats the variable name and its index positions before
+    the payload, so the index numbers themselves would otherwise be
+    read as data. Strip the brackets, then take everything after the
+    divider line.
+    """
+    parts = _LMHOFS_DIVIDER.split(text)
+    body = parts[-1] if len(parts) > 1 else "\n".join(text.splitlines()[1:])
+    body = _LMHOFS_BRACKETS.sub(" ", body)
+    values = []
+    for match in _LMHOFS_NUMBER.finditer(body):
+        try:
+            values.append(float(match.group()))
+        except ValueError:
+            pass
+    return values
+
+
+def lmhofs_read_value(file_url, query):
+    """Read a single value. Returns a float, or None if anything failed."""
+    ok, body = lmhofs_get("%s.ascii?%s" % (file_url, lmhofs_escape(query)))
+    if not ok:
+        return None
+    values = lmhofs_numbers(body)
+    return values[-1] if values else None
+
+
+def lmhofs_find_run():
+    """Locate the newest usable model run.
+
+    Walks backwards 18z -> 12z -> 06z -> 00z, then to previous days,
+    and STOPS as soon as a candidate would be older than
+    LMHOFS_MAX_AGE_HOURS. That stopping rule is decision D82 expressed
+    as control flow: there is no point finding a run we would refuse.
+
+    Returns (file_url, run_time_utc, age_hours) or (None, None, None).
+    """
+    now = datetime.now(timezone.utc)
+    for day_offset in range(0, 3):
+        day = now - timedelta(days=day_offset)
+        for cycle in LMHOFS_CYCLES:
+            run_time = datetime(day.year, day.month, day.day,
+                                int(cycle), 0, 0, tzinfo=timezone.utc)
+            if run_time > now:
+                continue  # a cycle later today that has not happened yet
+            age_hours = (now - run_time).total_seconds() / 3600.0
+            if age_hours > LMHOFS_MAX_AGE_HOURS:
+                return None, None, None  # D82: too old to be worth using
+            parts = {"yyyy": day.strftime("%Y"), "mm": day.strftime("%m"),
+                     "dd": day.strftime("%d"), "cycle": cycle}
+            url = LMHOFS_BASE_DIR.format(**parts) + LMHOFS_FIELDS_FILE.format(**parts)
+            ok, body = lmhofs_get(url + ".dds", max_chars=4000)
+            if ok and "Dataset" in body:
+                return url, run_time, round(age_hours, 1)
+    return None, None, None
+
+
+def lmhofs_check_mesh(file_url):
+    """Confirm the mesh still has the shape the frozen indices assume.
+
+    Risk R21. A frozen node index means nothing if NOAA renumbers the
+    mesh — node 23983 would still return a temperature, it would just
+    be somewhere else in the lake. Returns (ok, node_count, message).
+    """
+    ok, dds = lmhofs_get(file_url + ".dds", max_chars=8000)
+    if not ok:
+        return False, None, "could not read the file description: %s" % dds
+    node_count = None
+    for line in dds.splitlines():
+        stripped = line.strip().rstrip(";")
+        head = _LMHOFS_BRACKETS.sub("", stripped).split()
+        if len(head) >= 2 and head[1] == "temp":
+            for name, size in _LMHOFS_DIM.findall(stripped):
+                if name.lower().startswith("node"):
+                    node_count = int(size)
+    if node_count is None:
+        return False, None, "the file no longer declares a node dimension on temp"
+    if node_count != LMHOFS_EXPECTED_NODE_COUNT:
+        return False, node_count, (
+            "mesh size changed: expected %d nodes, found %d. The frozen node "
+            "indices are no longer trustworthy. Re-run the LMHOFS probe."
+            % (LMHOFS_EXPECTED_NODE_COUNT, node_count)
+        )
+    return True, node_count, None
+
+
+def lmhofs_read_node(file_url, node, expect_lat, expect_lon, expect_label):
+    """Read one mesh node: temperature, plus its own published position.
+
+    The position is not decoration. Reading it here means the distance
+    published on the site is computed from coordinates NOAA supplied on
+    this very run — nothing is hand-written (C19) — and it doubles as
+    the per-node half of the R21 drift check.
+
+    A position read that fails is NOT fatal: the temperature is still
+    published, marked position_verified false, with no distance. A
+    missing distance is honest; a wrong one is not (C22).
+    """
+    result = {
+        "available": False, "node": node, "water_temp_f": None,
+        "node_lat": None, "node_lon": None, "distance_mi": None,
+        "position_verified": False, "error": None,
+    }
+
+    # temp[time=0][siglay=0][node]. siglay 0 is the SURFACE layer —
+    # confirmed by measurement 2026-07-25 (D65), not assumed.
+    celsius = lmhofs_read_value(file_url, "temp[0][0][%d]" % node)
+    if celsius is None:
+        result["error"] = "no temperature returned for node %d" % node
+        return result
+    fahrenheit = round(celsius * 9.0 / 5.0 + 32.0, 1)
+    # Lake Michigan sanity band. A value outside it means the units or
+    # the layer are not what we think, so publish nothing.
+    if not (32.0 <= fahrenheit <= 90.0):
+        result["error"] = ("implausible %.1f F (raw %.3f C) for node %d — refusing"
+                           % (fahrenheit, celsius, node))
+        return result
+
+    node_lat = lmhofs_read_value(file_url, "lat[%d]" % node)
+    node_lon = lmhofs_read_value(file_url, "lon[%d]" % node)
+    if node_lon is not None and node_lon > 180:
+        node_lon -= 360.0  # the file may publish 0–360 longitudes
+
+    if node_lat is not None and node_lon is not None:
+        distance = haversine_miles(expect_lat, expect_lon, node_lat, node_lon)
+        if distance is not None and distance > LMHOFS_MAX_NODE_DRIFT_MI:
+            result["error"] = (
+                "node %d is %.2f mi from %s, past the %.1f mi limit. The mesh may "
+                "have been renumbered — refusing this reading rather than "
+                "publishing a temperature from the wrong place."
+                % (node, distance, expect_label, LMHOFS_MAX_NODE_DRIFT_MI)
+            )
+            return result
+        result["node_lat"] = round(node_lat, 5)
+        result["node_lon"] = round(node_lon, 5)
+        result["distance_mi"] = distance
+        result["position_verified"] = True
+    else:
+        # Temperature is good; we simply cannot prove where it came from.
+        result["error"] = "node position unavailable — distance not published"
+
+    result["available"] = True
+    result["water_temp_f"] = fahrenheit
+    return result
+
+
+def fetch_lmhofs():
+    """Read nearshore water temperature for all six piers, once.
+
+    Roughly 20 small requests total. Returns a block that is always
+    present in data.json, even when unavailable, so a page can always
+    tell the difference between "the model says nothing today" and
+    "this key does not exist".
+    """
+    block = {
+        "available": False,
+        "model": "NOAA Lake Michigan–Huron Operational Forecast System (LMHOFS)",
+        "source_tier": "MODELED",
+        "run_time_utc": None,
+        "run_age_hours": None,
+        "stale": False,
+        "disclose_age": False,
+        "mesh_node_count": None,
+        "points": {},
+        "error": None,
+    }
+
+    file_url, run_time, age_hours = lmhofs_find_run()
+    if file_url is None:
+        block["error"] = (
+            "no LMHOFS run published within the last %d hours — piers fall back "
+            "to their existing water sources (D82)" % LMHOFS_MAX_AGE_HOURS
+        )
+        return block
+
+    block["run_time_utc"] = run_time.isoformat()
+    block["run_age_hours"] = age_hours
+    # D82 middle band: still used, but the age is published so a page
+    # can say so out loud rather than quietly presenting old numbers.
+    block["disclose_age"] = age_hours >= LMHOFS_DISCLOSE_AGE_HOURS
+
+    mesh_ok, node_count, mesh_msg = lmhofs_check_mesh(file_url)
+    block["mesh_node_count"] = node_count
+    if not mesh_ok:
+        block["error"] = mesh_msg
+        return block
+
+    for pier_id, node in LMHOFS_NODES.items():
+        pier_cfg = PIERS.get(pier_id, {})
+        block["points"][pier_id] = lmhofs_read_node(
+            file_url, node, pier_cfg.get("lat"), pier_cfg.get("lon"),
+            "the %s pier" % pier_cfg.get("name", pier_id),
+        )
+
+    # The open-lake comparison node, beside buoy 45210.
+    buoy_geo = STATION_GEO.get("tr1", {})
+    block["points"]["open_lake_45210"] = lmhofs_read_node(
+        file_url, LMHOFS_CONTEXT_NODE, buoy_geo.get("lat"), buoy_geo.get("lon"),
+        "buoy 45210",
+    )
+
+    block["available"] = any(p.get("available") for p in block["points"].values())
+    if not block["available"]:
+        block["error"] = "a model run was found but no node returned a usable value"
+    return block
+
+
+def build_open_lake_context(output):
+    """The nearshore-versus-open-lake gap, published as one object.
+
+    Buoy 45210 stops being a temperature source in v11, but it keeps
+    earning its place. The difference between a 7-foot-deep pier and
+    475 feet of open water 26 miles out is not noise — it is the
+    upwelling this whole site is about, expressed as a number. It is
+    also the plainest possible answer to a visitor asking why the
+    site's temperatures changed.
+    """
+    context = {
+        "available": False,
+        "buoy_label": None, "buoy_temp_f": None, "buoy_distance_mi": None,
+        "model_open_lake_temp_f": None,
+        "nearshore_temp_f": None, "nearshore_pier": None,
+        "gap_f": None,
+        "note": None,
+    }
+    buoy = output.get("stations", {}).get("tr1", {})
+    if buoy.get("available") and isinstance(buoy.get("water_temp_f"), (int, float)):
+        context["buoy_label"] = buoy.get("label")
+        context["buoy_temp_f"] = buoy.get("water_temp_f")
+        tr = PIERS.get("two_rivers", {})
+        context["buoy_distance_mi"] = haversine_miles(
+            tr.get("lat"), tr.get("lon"), buoy.get("lat"), buoy.get("lon"))
+
+    model = output.get("model_water_temp", {}).get("points", {})
+    open_lake = model.get("open_lake_45210", {})
+    if open_lake.get("available"):
+        context["model_open_lake_temp_f"] = open_lake.get("water_temp_f")
+
+    near = model.get("two_rivers", {})
+    if near.get("available"):
+        context["nearshore_temp_f"] = near.get("water_temp_f")
+        context["nearshore_pier"] = PIERS.get("two_rivers", {}).get("name")
+
+    if context["nearshore_temp_f"] is not None and context["buoy_temp_f"] is not None:
+        context["gap_f"] = round(context["buoy_temp_f"] - context["nearshore_temp_f"], 1)
+        context["available"] = True
+        context["note"] = (
+            "Open-lake and nearshore water are not the same water. This is the "
+            "difference between a reading taken at the pier and one taken in deep "
+            "water offshore."
+        )
+    return context
+
+
+def validate_config():
+    """Check that every codename a pier references actually exists.
+
+    Risk R25. In v10 a dead reference to a station codenamed "kw1" was
+    found in Two Rivers' fallback chain. No such station was defined
+    anywhere. It had resolved silently to nothing on every run for
+    months, and nothing failed — because nothing could. The config
+    merely LOOKED as though Two Rivers had a Kewaunee backup.
+
+    Warns rather than aborts, deliberately: a stale but correct
+    data.json is better for a visitor than no data.json at all.
+    """
+    warnings = []
+    sat_keys = set(GLSEA_POINTS)
+    for pier_id, cfg in PIERS.items():
+        buoy = cfg.get("buoy")
+        if buoy and buoy not in STATION_GEO:
+            warnings.append("%s: buoy codename '%s' is not defined in STATIONS"
+                            % (pier_id, buoy))
+        sat = cfg.get("satellite")
+        if sat and sat not in sat_keys:
+            warnings.append("%s: satellite key '%s' is not defined in GLSEA_POINTS"
+                            % (pier_id, sat))
+        for kind, key, _name in cfg.get("water_fallbacks", []):
+            pool = STATION_GEO if kind == "station" else sat_keys
+            if key not in pool:
+                warnings.append("%s: water fallback '%s' (%s) is not defined anywhere"
+                                % (pier_id, key, kind))
+        for hist_key, _borrowed in cfg.get("wind_history", []):
+            if hist_key not in HISTORY_GEO:
+                warnings.append("%s: wind history codename '%s' is not defined in "
+                                "STATION_HISTORY" % (pier_id, hist_key))
+        zone = cfg.get("zone")
+        zone_keys = set()
+        for zone_id, meta in ZONES.items():
+            for codename in meta.get("codenames", [meta.get("codename", zone_id)]):
+                zone_keys.add(codename)
+        if zone and zone not in zone_keys:
+            warnings.append("%s: zone codename '%s' is not defined in ZONES"
+                            % (pier_id, zone))
+        if pier_id not in LMHOFS_NODES:
+            warnings.append("%s: no LMHOFS grid node is configured for this pier"
+                            % pier_id)
+    return warnings
+
+
+# ---------------------------------------------------------------
 # 2. SCORING ENGINE — new in v5. "The backend thinks, the
 #    frontend displays."
 #
@@ -1131,12 +1665,46 @@ def score_storm_clarity(alerts):
     return worst_score, worst_event
 
 
-def resolve_water(pier_cfg, output):
+def resolve_water(pier_id, pier_cfg, output):
     """Walk one pier's water-temperature source chain, most-honest
-    source first: own live buoy -> own satellite point -> borrowed
-    neighbor readings. Returns None if every source is dark."""
+    source first.
+
+    v11 order: LMHOFS nearshore model -> own live buoy -> own satellite
+    point -> borrowed neighbor readings. Returns None if every source
+    is dark.
+
+    WHY THE MODEL OUTRANKS A REAL THERMOMETER. It looks backwards, and
+    it is the central judgement of this release. A measurement is only
+    better than a simulation if it is a measurement OF THE RIGHT THING.
+    Buoy 45210 is a genuine, accurate, well-maintained thermometer
+    reading water 26 miles offshore and 475 feet deep — water an angler
+    standing on a pier will never fish. LMHOFS estimates the water
+    actually at the pier. So the model wins, and it is labelled MODELED
+    every single time so nobody mistakes the estimate for a reading
+    (C13, D64).
+    """
     stations = output.get("stations", {})
     sats = output.get("satellite_water_temp", {})
+
+    model = output.get("model_water_temp", {})
+    if model.get("available"):
+        point = model.get("points", {}).get(pier_id, {})
+        if point.get("available") and isinstance(point.get("water_temp_f"), (int, float)):
+            return {
+                "temp_f": point["water_temp_f"],
+                "source": "MODELED",
+                "source_name": None,
+                "source_key": pier_id,
+                "source_kind": "model",
+                # A single model run is one snapshot, so there is no
+                # trend to report yet. Note this replaces a 72h trend
+                # measured at the DEEP-WATER buoy, where the nearshore
+                # upwelling this site reports does not occur — so it
+                # drops a misleading input, not a useful one. A real
+                # nearshore trend from older runs is Phase 1.3c.
+                "change_24h_f": None,
+                "change_72h_f": None,
+            }
 
     buoy_key = pier_cfg.get("buoy")
     if buoy_key:
@@ -1204,6 +1772,7 @@ def build_piers(output):
     from the raw sections already collected above. Makes no extra
     network requests."""
     piers_out = {}
+    model_block = output.get("model_water_temp", {})
     for pier_id, cfg in PIERS.items():
         stations = output.get("stations", {})
         zones = output.get("zones", {})
@@ -1250,7 +1819,7 @@ def build_piers(output):
                                  "mph_high": None, "source": None, "source_name": None}
 
         # --- Water factor.
-        water = resolve_water(cfg, output)
+        water = resolve_water(pier_id, cfg, output)
         if water is not None:
             water_score = score_water(water["temp_f"], water["change_72h_f"])
         else:
@@ -1281,7 +1850,20 @@ def build_piers(output):
         water_station_label = None
         water_distance_mi = None
         if water is not None:
-            if water.get("source_kind") == "station":
+            if water.get("source_kind") == "model":
+                # v11. The distance was computed from the coordinates
+                # NOAA published for this node on THIS run — see
+                # lmhofs_read_node(). Note the label carries no distance
+                # in its text: distance travels in its own field so it
+                # can never go stale inside a sentence (C19, D87).
+                point = (output.get("model_water_temp", {})
+                         .get("points", {}).get(water.get("source_key"), {}))
+                water_station_label = (
+                    "NOAA LMHOFS nearshore model \u2014 grid node %s"
+                    % point.get("node")
+                )
+                water_distance_mi = point.get("distance_mi")
+            elif water.get("source_kind") == "station":
                 geo = STATION_GEO.get(water.get("source_key"))
                 if geo:
                     water_station_label = geo.get("label")
@@ -1291,6 +1873,25 @@ def build_piers(output):
                 sat_meta = output.get("satellite_water_temp", {}).get(
                     water.get("source_key"), {})
                 water_station_label = sat_meta.get("label")
+
+        # v11 (D86): the wave number gets the same treatment every other
+        # number now gets — say where it came from. A buoy reading gets
+        # the buoy's real label and a computed distance. A forecast gets
+        # the marine zone's name and NO distance, because a zone forecast
+        # covers a stretch of coastline rather than a point, so there is
+        # nothing honest to measure a distance to (C22).
+        wave_station_label = None
+        wave_distance_mi = None
+        if wave_source == "LIVE" and cfg.get("buoy"):
+            wave_geo = STATION_GEO.get(cfg["buoy"])
+            if wave_geo:
+                wave_station_label = wave_geo.get("label")
+                wave_distance_mi = distance_from_pier(cfg, STATION_GEO, cfg["buoy"])
+        elif wave_source == "FORECAST":
+            wave_station_label = (
+                "NWS marine forecast \u2014 %s" % zone.get("label")
+                if zone.get("label") else "NWS marine forecast"
+            )
 
         wind_station_label = None
         wind_distance_mi = None
@@ -1369,13 +1970,23 @@ def build_piers(output):
 
         estimated_labels = [f["label"] for f in scored if f["source"] == "ESTIMATED"]
 
+        # v11 — RISK R26, and a second bug found while fixing it.
+        # This was "scored factors minus ESTIMATED factors", which meant
+        # a FORECAST factor counted as verified, and a MODELED one would
+        # have too. The frontend prints this number as "N of 4 factors
+        # measured live". On 2026-07-27 Sheboygan was publishing 3 when
+        # exactly one of its factors was genuinely measured. A factor is
+        # now counted only when its source is literally LIVE. This
+        # LOWERS the number on several piers. The lower number is true.
+        verified_count = len([f for f in scored if f["source"] == "LIVE"])
+
         piers_out[pier_id] = {
             "name": cfg["name"],
             "score": score,
             "band": band_for(score),
             "incomplete": incomplete,
             "capped": capped,
-            "verified_count": len(scored) - len(estimated_labels),
+            "verified_count": verified_count,
             "factor_total": 4,
             "estimated_factors": estimated_labels,
             "factors": factors,
@@ -1396,6 +2007,19 @@ def build_piers(output):
                 # position - "no distance" beats a wrong distance.
                 "water_temp_station_label": water_station_label,
                 "water_temp_distance_mi": water_distance_mi,
+                # v11 (D82). Repeated here on purpose: a pier box should
+                # be able to disclose how old the model run is without
+                # reaching into a different top-level section. Both are
+                # None whenever the reading did not come from the model.
+                "water_temp_model_run_utc": (
+                    model_block.get("run_time_utc")
+                    if water and water.get("source_kind") == "model" else None),
+                "water_temp_model_age_hours": (
+                    model_block.get("run_age_hours")
+                    if water and water.get("source_kind") == "model" else None),
+                "water_temp_model_disclose_age": (
+                    bool(model_block.get("disclose_age"))
+                    if water and water.get("source_kind") == "model" else False),
                 "water_change_24h_f": water["change_24h_f"] if water else None,
                 "water_change_72h_f": water["change_72h_f"] if water else None,
                 "wind": wind_headline,
@@ -1403,6 +2027,11 @@ def build_piers(output):
                 "wind_distance_mi": wind_distance_mi,
                 "wave_ft": round(wave_ft, 1) if wave_ft is not None else None,
                 "wave_source": wave_source,
+                # v11 (D86). The Two Rivers pier boxes were already
+                # written to read these and were correctly showing no
+                # wave distance at all because they did not yet exist.
+                "wave_station_label": wave_station_label,
+                "wave_distance_mi": wave_distance_mi,
                 "pressure_hpa": buoy.get("pressure_hpa") if buoy.get("available") else None,
                 "pressure_tendency_3h_hpa": (buoy.get("pressure_tendency_3h_hpa")
                                              if buoy.get("available") else None),
@@ -1411,14 +2040,30 @@ def build_piers(output):
     return piers_out
 
 
+# v11 (D83). The badge originally required LIVE water, because the
+# alternative at the time was a borrowed reading from another pier and
+# a badge based on borrowed data means nothing. MODELED is a different
+# thing entirely: it is this pier's own water, estimated at this pier.
+#
+# THIS LINE IS WHY THE CHANGE MATTERS. Once water becomes MODELED, a
+# LIVE-only rule matches no pier at all, and the badge disappears from
+# the home page and all six pier pages — with no error, nothing in the
+# logs, and nothing visibly broken. It would simply stop existing. That
+# was found by tracing the consequence of the source change before
+# deploying it, not by noticing it missing afterwards.
+HOT_PIER_ELIGIBLE_WATER_SOURCES = ("LIVE", "MODELED")
+
+
 def compute_hot_piers(piers):
     """The HOT PIER TODAY badge, computed once here so the home
     page and pier pages can never disagree. Rule (decided
-    2026-07-16): only piers with LIVE water-temp data can win;
-    genuine ties all get the badge; if no pier has live water data
-    today, nobody gets it."""
+    2026-07-16, amended v11 by D83): only piers whose water temp is
+    the pier's OWN — measured live or modelled at the pier — can win.
+    A borrowed reading still cannot. Genuine ties all get the badge;
+    if no pier qualifies today, nobody gets it."""
     live = {pid: p for pid, p in piers.items()
-            if p["headline"]["water_temp_source"] == "LIVE" and p["score"] is not None}
+            if p["headline"]["water_temp_source"] in HOT_PIER_ELIGIBLE_WATER_SOURCES
+            and p["score"] is not None}
     if not live:
         return []
     top = max(p["score"] for p in live.values())
@@ -1434,6 +2079,19 @@ def main():
         "station_history": {},
         "satellite_water_temp": {},
     }
+
+    # v11 (risk R25) — run this FIRST, before any network work, so a
+    # broken reference is visible at the very top of the Actions log
+    # rather than buried under 50 fetch lines.
+    config_warnings = validate_config()
+    output["config_warnings"] = config_warnings
+    if config_warnings:
+        print("CONFIG WARNINGS — a pier references something that is not defined:")
+        for warning in config_warnings:
+            print("  ! %s" % warning)
+        print("Continuing anyway: stale-but-correct data beats no data.\n")
+    else:
+        print("Config self-audit: every referenced codename resolves.\n")
 
     for station_id, meta in STATIONS.items():
         try:
@@ -1492,6 +2150,26 @@ def main():
         result["label"] = meta["label"]
         output["satellite_water_temp"][point_id] = result
 
+    # --- v11: nearshore water temperature. This is the last raw
+    # section fetched and the first one the scoring engine reaches for.
+    try:
+        output["model_water_temp"] = fetch_lmhofs()
+    except Exception as err:  # noqa: BLE001
+        output["model_water_temp"] = {
+            "available": False, "points": {},
+            "error": "LMHOFS fetch failed outright: %s" % err,
+        }
+    model_status = output["model_water_temp"]
+    if model_status.get("available"):
+        good = [pid for pid, p in model_status["points"].items() if p.get("available")]
+        print("LMHOFS: run %s (%.1f h old), %d of %d nodes read."
+              % (model_status.get("run_time_utc"),
+                 model_status.get("run_age_hours") or 0.0,
+                 len(good), len(model_status["points"])))
+    else:
+        print("LMHOFS UNAVAILABLE: %s" % model_status.get("error"))
+        print("Piers fall back to their existing water sources (D82).")
+
     # --- Finished per-pier scores + data-contract fields. Added
     # AFTER all raw sections so it works purely from data already
     # collected above (no extra network requests).
@@ -1499,6 +2177,7 @@ def main():
     output["stale_after_hours"] = STALE_AFTER_HOURS
     output["piers"] = build_piers(output)
     output["hot_piers_today"] = compute_hot_piers(output["piers"])
+    output["open_lake_context"] = build_open_lake_context(output)
 
     with open("data.json", "w") as f:
         json.dump(output, f, indent=2)
