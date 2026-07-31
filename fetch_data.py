@@ -563,8 +563,79 @@ Updated 2026-07-31 (v16, Phase 1.5 - decision D137): THE SATELLITE
   permanently empty dict. Any older Carrd embed that still reads that
   key gets an empty object instead of a crash. It can be deleted once
   every pier box is confirmed clean.
+
+Updated 2026-07-31 (v17, Phase 1.7 - decision D144): THE FOUR
+  VISITOR-FACING SOURCE TIERS (D12) ARE NOW PUBLISHED. LABELS ONLY.
+  NO SCORE, ANYWHERE, MOVES BY ONE POINT.
+
+  This adds three new keys next to every existing "source" field -
+  "tier", "tier_symbol" and "locality" - and changes nothing else.
+  Every pre-existing key keeps its pre-existing value. The internal
+  codes (LIVE / MODELED / ESTIMATED / FORECAST / MISSING) are
+  UNCHANGED and still drive every calculation; the new keys are a
+  presentation layer sitting beside them, so the backend keeps
+  thinking in precise engineering terms while the frontend gets
+  plain words a visitor can read.
+
+  THE ONE REAL JUDGMENT CALL, AND WHY IT WENT THE WAY IT DID (D144):
+
+  ESTIMATED maps to Measured, not to Modeled.
+
+  ESTIMATED means a real thermometer or anemometer, reading real
+  water or real air, RIGHT NOW - just standing at a neighbouring
+  pier instead of this one. Calling that "Modeled" would tell a
+  visitor an instrument reading is a computer simulation. That is
+  false, and it would also wreck the Modeled tier by filling it with
+  two unrelated kinds of number, so "Modeled" would stop meaning
+  anything.
+
+  This follows the precedent already set by D139: THE TIER DESCRIBES
+  HOW A NUMBER WAS OBTAINED, NEVER WHETHER IT IS ABOUT THE RIGHT
+  PLACE. Instrument, model, forecast, nothing. That is the whole
+  question the tier answers.
+
+  "Is it about the right place?" is a real and separate question,
+  and it is answered by two fields that already existed and were
+  simply not being used together: the station label and the
+  distance-to-pier. That is why "locality" is added here -
+  at_pier / borrowed / area / unknown - so a frontend physically
+  cannot render a bare "Measured" dot on a reading that came from
+  eleven miles up the coast without also saying so.
+
+  THE HONESTY GUARD: a Measured tier on a station-backed field
+  (water, wind, waves) whose distance is None is emitted with
+  locality "unknown" and prints a warning to the run log. A real
+  measurement we cannot place is still a real measurement - so it is
+  NOT downgraded to Unknown, which would be its own lie in the other
+  direction - but it is never allowed to look located when it isn't.
+  As of the audit run on 2026-07-31 there are ZERO such cases: every
+  LIVE and ESTIMATED value on all six piers already carries a
+  distance. The guard is defensive, for a future station added
+  without coordinates.
+
+  NOT CHANGED HERE, ON PURPOSE: the Clarity / Storm factor still
+  reports source "LIVE" when no storm alert is active, which still
+  counts it toward verified_count. That is arguably right (the NWS
+  alert feed genuinely was read just now) and arguably wrong ("no
+  alert" is not a measurement of anything). Either way it would
+  change a number visitors see, so it is a SEPARATE decision and a
+  SEPARATE deploy - see risk R63. One backend change at a time.
 """
 
+# File: fetch-data-2026-07-31-v17-visitor-facing-source-tiers.py
+# Delivered: 2026-07-31 (v17 — Phase 1.7, D144: publishes the four
+#            visitor-facing source tiers from D12 as three new keys
+#            beside every existing "source" field — "tier",
+#            "tier_symbol", "locality". ESTIMATED maps to Measured,
+#            not Modeled — see the header for the reasoning. Adds an
+#            honesty guard so a Measured value with no known distance
+#            reports locality "unknown" instead of looking local.
+#            PURELY ADDITIVE: no key removed, no key renamed, no
+#            existing value changed, no score moved. Verified by
+#            byte-level side-by-side regression against v16 across
+#            live data and four failure scenarios.)
+# Supersedes: the v16 file (2026-07-31, Phase 1.5 satellite retirement)
+#
 # File: fetch-data-2026-07-31-v15-mt1-manitowoc-honesty-fix.py
 # Delivered: 2026-07-31 (v15 — D133: removed Manitowoc's false claim
 #            on mt1 as its own buoy; it now falls through the same
@@ -2228,6 +2299,75 @@ def band_for(score):
     return {"label": "Poor", "tone": "bad"}
 
 
+# -----------------------------------------------------------------
+# v17 (Phase 1.7, decision D144) - VISITOR-FACING SOURCE TIERS.
+#
+# The left column is what the backend thinks. The right column is
+# what a visitor reads. They are deliberately different vocabularies:
+# the backend needs precision, the visitor needs plain words.
+#
+#   LIVE       -> Measured  (an instrument, at this pier)
+#   ESTIMATED  -> Measured  (an instrument, at a neighbouring pier)
+#   MODELED    -> Modeled   (NOAA's LMHOFS simulation, at this pier)
+#   FORECAST   -> Forecast  (NWS prediction for an area)
+#   MISSING    -> Unknown   (nothing resolved - say so plainly)
+#
+# ESTIMATED sitting under Measured is the deliberate call. See D144
+# in the header. The short version: it IS a measurement, and the
+# thing that makes it different - that it was taken somewhere else -
+# is carried by "locality" and by the distance figure, not by
+# pretending a thermometer is a simulation.
+#
+# Symbols are the ones fixed by D12 and must not be re-picked here:
+#   Measured (filled) / Modeled (half) / Forecast (quarter) /
+#   Unknown (hollow).
+SOURCE_TIERS = {
+    "LIVE":      {"tier": "Measured", "symbol": "\u25CF", "locality": "at_pier"},
+    "ESTIMATED": {"tier": "Measured", "symbol": "\u25CF", "locality": "borrowed"},
+    "MODELED":   {"tier": "Modeled",  "symbol": "\u25D0", "locality": "at_pier"},
+    "FORECAST":  {"tier": "Forecast", "symbol": "\u25D4", "locality": "area"},
+    "MISSING":   {"tier": "Unknown",  "symbol": "\u25CB", "locality": None},
+}
+
+
+def source_tier_block(code, distance_mi=None, expect_distance=False,
+                      what=None, pier_id=None):
+    """Translate one internal source code into the three
+    visitor-facing keys. Pure function - reads nothing, writes
+    nothing, and cannot affect any score.
+
+    expect_distance=True marks a STATION-BACKED field (water, wind,
+    waves), i.e. one where a real instrument implies a real place.
+    Passing True turns on the honesty guard described in the header:
+    a Measured reading we cannot locate is reported with locality
+    "unknown" rather than being allowed to look like it came from
+    the pier. It keeps its Measured tier, because it genuinely is a
+    measurement - understating it would be a lie in the other
+    direction.
+
+    An unrecognised code falls to Unknown rather than raising. A new
+    code appearing here should surface as an honest "Unknown" on the
+    page, never as a crashed build."""
+    entry = SOURCE_TIERS.get(code)
+    if entry is None:
+        print("WARNING: unrecognised source code %r (%s%s) - "
+              "reporting as Unknown."
+              % (code, pier_id or "?", "/" + what if what else ""))
+        entry = SOURCE_TIERS["MISSING"]
+    locality = entry["locality"]
+    if entry["tier"] == "Measured" and expect_distance and distance_mi is None:
+        print("WARNING: %s %s is Measured but has no distance-to-pier. "
+              "Reporting locality 'unknown'. Check that its station has "
+              "coordinates in config."
+              % (pier_id or "?", what or "value"))
+        locality = "unknown"
+    return {
+        "tier": entry["tier"],
+        "tier_symbol": entry["symbol"],
+        "locality": locality,
+    }
+
+
 def build_piers(output):
     """Compute the finished, ready-to-display block for every pier
     from the raw sections already collected above. Makes no extra
@@ -2450,6 +2590,27 @@ def build_piers(output):
         # LOWERS the number on several piers. The lower number is true.
         verified_count = len([f for f in scored if f["source"] == "LIVE"])
 
+        # v17 (D144). Add the three visitor-facing keys to every
+        # factor. Done HERE, after verified_count and
+        # estimated_labels are computed, so it is impossible for
+        # this block to influence either of them - both read
+        # f["source"], which is not touched.
+        #
+        # Clarity / Storm is the only factor with no station behind
+        # it, so it passes expect_distance=False and is exempt from
+        # the distance guard. The other three are station-backed.
+        _factor_distance = {
+            "Wind / Upwelling": (wind_distance_mi, True),
+            "Water Temperature": (water_distance_mi, True),
+            "Lake Conditions": (wave_distance_mi, True),
+            "Clarity / Storm": (None, False),
+        }
+        for f in factors:
+            _dist, _expect = _factor_distance.get(f["label"], (None, False))
+            f.update(source_tier_block(
+                f["source"], distance_mi=_dist, expect_distance=_expect,
+                what=f["label"], pier_id=pier_id))
+
         piers_out[pier_id] = {
             "name": cfg["name"],
             "score": score,
@@ -2477,6 +2638,15 @@ def build_piers(output):
                 # position - "no distance" beats a wrong distance.
                 "water_temp_station_label": water_station_label,
                 "water_temp_distance_mi": water_distance_mi,
+                # v17 (D144). Visitor-facing translation of
+                # water_temp_source, which is left exactly as it was.
+                # A missing source is normalised to "MISSING" so the
+                # honest word "Unknown" is published rather than a
+                # null the frontend has to interpret.
+                **{("water_temp_" + k): v for k, v in source_tier_block(
+                    (water["source"] if water else None) or "MISSING",
+                    distance_mi=water_distance_mi, expect_distance=True,
+                    what="water temperature", pier_id=pier_id).items()},
                 # v11 (D82). Repeated here on purpose: a pier box should
                 # be able to disclose how old the model run is without
                 # reaching into a different top-level section. Both are
@@ -2495,6 +2665,14 @@ def build_piers(output):
                 "wind": wind_headline,
                 "wind_station_label": wind_station_label,
                 "wind_distance_mi": wind_distance_mi,
+                # v17 (D144). Flat keys, matching the existing
+                # wind_station_label / wind_distance_mi pattern,
+                # rather than reaching inside the nested "wind" dict
+                # that the pier boxes already read.
+                **{("wind_" + k): v for k, v in source_tier_block(
+                    wind_headline.get("source") or "MISSING",
+                    distance_mi=wind_distance_mi, expect_distance=True,
+                    what="wind", pier_id=pier_id).items()},
                 "wave_ft": round(wave_ft, 1) if wave_ft is not None else None,
                 "wave_source": wave_source,
                 # v11 (D86). The Two Rivers pier boxes were already
@@ -2502,6 +2680,11 @@ def build_piers(output):
                 # wave distance at all because they did not yet exist.
                 "wave_station_label": wave_station_label,
                 "wave_distance_mi": wave_distance_mi,
+                # v17 (D144).
+                **{("wave_" + k): v for k, v in source_tier_block(
+                    wave_source or "MISSING",
+                    distance_mi=wave_distance_mi, expect_distance=True,
+                    what="waves", pier_id=pier_id).items()},
                 "pressure_hpa": buoy.get("pressure_hpa") if buoy.get("available") else None,
                 "pressure_tendency_3h_hpa": (buoy.get("pressure_tendency_3h_hpa")
                                              if buoy.get("available") else None),
