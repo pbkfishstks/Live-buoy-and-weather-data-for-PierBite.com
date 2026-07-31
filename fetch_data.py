@@ -518,6 +518,51 @@ mt1 removed):
   documented four-tier system (D12) but NOT broken (no blank render,
   no crash, no "undefined"). Flagged for a separate, future wording
   decision; not touched here.
+
+Updated 2026-07-31 (v16, Phase 1.5 - decision D137): THE SATELLITE
+  (GLSEA) SOURCE TIER IS RETIRED AND REMOVED. This is a deletion, not
+  a repair, and it was chosen deliberately over the two alternatives
+  (fix it via a different provider such as GLOS, or leave it in
+  place).
+
+  WHY IT WAS DELETED RATHER THAN FIXED:
+
+  1. It has never produced a reading in production. Every GLSEA point
+     reported available:false on every run inspected, and all four
+     returned the SAME reason string - "no reading at this point
+     (likely cloud cover)" - simultaneously. Four separate points on
+     four different stretches of coast do not cloud over identically;
+     that is a systemic failure. The feed is understood to sit behind
+     an anti-bot wall.
+
+  2. Even if it worked perfectly, it would now be the WORSE number.
+     A GLSEA grid cell is roughly 1.5 km across. Since v11 every pier
+     draws water temperature from an LMHOFS nearshore node 0.01-0.25
+     MILES from the pier. Falling back from the model to the satellite
+     would mean falling back to a less relevant reading, which is the
+     opposite of what a fallback is for.
+
+  3. It was an advertised source tier that had never once worked
+     (risk R18). The site's entire premise is that it does not
+     overstate what it knows. Publishing a Satellite tier that can
+     never fire was the clearest remaining violation of that.
+
+  WHAT THIS CHANGES ON A NORMAL DAY: nothing. The tier never fired,
+  so removing it cannot change any score, any label, or any number.
+  Verified by full six-pier regression before delivery.
+
+  WHAT THIS CHANGES ON A BAD DAY: nothing either - because the tier
+  did not work on bad days before this change. It is worth being
+  explicit, though, that on a day LMHOFS goes stale (>36h, D82) a
+  pier now falls straight from the model to its offshore buoy or a
+  borrowed reading. That gap is PRE-EXISTING and is not created by
+  this change; it is simply no longer disguised by a tier that was
+  never going to catch anything.
+
+  KEPT ON PURPOSE: output["satellite_water_temp"] still exists as a
+  permanently empty dict. Any older Carrd embed that still reads that
+  key gets an empty object instead of a crash. It can be deleted once
+  every pier box is confirmed clean.
 """
 
 # File: fetch-data-2026-07-31-v15-mt1-manitowoc-honesty-fix.py
@@ -643,39 +688,30 @@ NWS_ALERTS_URL = "https://api.weather.gov/alerts/active?zone={zone}"
 NWS_USER_AGENT = "PierBiteDotCom (contact: pierbite project owner)"
 
 # ---------------------------------------------------------------
-# 1d. GLSEA satellite water temperature — fallback for piers with
-#     no real buoy currently in the water. See the module docstring
-#     above for details on the freshness check.
+# 1d. GLSEA satellite water temperature - RETIRED 2026-07-31 (v16,
+#     Phase 1.5, decision D137).
+#
+#     This tier is gone, deliberately, and this note exists so nobody
+#     rebuilds it by accident. Three reasons, in order of weight:
+#
+#     1. It never worked in production. Every GLSEA point reported
+#        available:false on every run inspected, all four returning
+#        the identical "likely cloud cover" reason - a systemic
+#        failure, not weather. The feed sits behind an anti-bot wall.
+#     2. Even working perfectly it would be WORSE than what replaced
+#        it. A GLSEA cell is ~1.5 km across. The LMHOFS nodes now
+#        supplying every pier sit 0.01-0.25 miles from the pier
+#        itself. Falling back from the model to the satellite would
+#        be falling back to a less relevant number.
+#     3. It was an advertised source tier that had never once
+#        produced a reading (logged as risk R18). On a site whose
+#        entire premise is not overstating what it knows, that was
+#        the clearest remaining honesty violation.
+#
+#     If a future nearshore backup is ever wanted for the >36h
+#     stale-LMHOFS case, build it as a new, tested source - do not
+#     resurrect GLSEA.
 # ---------------------------------------------------------------
-GLSEA_POINTS = {
-    "manitowoc": {
-        "lat": 44.0955,
-        "lon": -87.6608,
-        "label": "Manitowoc harbor mouth (satellite estimate — GLSEA; no buoy exists here)",
-    },
-    "sheboygan": {
-        "lat": 43.7495,
-        "lon": -87.6927,
-        "label": "Sheboygan Breakwater Lighthouse, north pier (satellite estimate — GLSEA; buoy 45218 is seasonal and currently out of the water)",
-    },
-    "kewaunee": {
-        "lat": 44.4589,
-        "lon": -87.5094,
-        "label": "Kewaunee Pierhead (satellite estimate — GLSEA; no buoy exists here)",
-    },
-    "algoma": {
-        "lat": 44.6086,
-        "lon": -87.4350,
-        "label": "Algoma harbor mouth (satellite estimate — GLSEA; no buoy exists here; GLSEA is currently blocked by an anti-bot wall, so this will report unavailable until that's resolved)",
-    },
-}
-
-GLSEA_URL_TEMPLATE = (
-    "https://apps.glerl.noaa.gov/erddap/griddap/GLSEA_ACSPO_GCS.json"
-    "?sst[(last)][({lat}):({lat})][({lon}):({lon})]"
-)
-GLSEA_USER_AGENT = "PierBiteDotCom (contact: pierbite project owner)"
-GLSEA_MAX_AGE_DAYS = 5  # if the newest satellite reading is older than this, treat it as unavailable
 
 # ---------------------------------------------------------------
 # 1e. LMHOFS — NOAA Lake Michigan–Huron Operational Forecast System.
@@ -1247,48 +1283,6 @@ def fetch_zone_alerts(zone_id):
     }
 
 
-def fetch_glsea_point(lat, lon):
-    """Ask NOAA's GLSEA satellite dataset for the most recent surface
-    water temperature at one specific point on the lake (about a
-    1.5 km grid square). This is a real satellite reading, not a
-    guess — but the feed has been observed to sometimes lag by
-    weeks. So every reading's age is checked here before it's ever
-    handed back. If it's older than GLSEA_MAX_AGE_DAYS, this
-    function returns available: False instead of a stale number,
-    the same honest pattern used elsewhere in this file for missing
-    marine zones."""
-    url = GLSEA_URL_TEMPLATE.format(lat=lat, lon=lon)
-    req = urllib.request.Request(url, headers={"User-Agent": GLSEA_USER_AGENT})
-    with urllib.request.urlopen(req, timeout=30) as response:
-        data = json.loads(response.read().decode("utf-8"))
-
-    rows = data.get("table", {}).get("rows", [])
-    if not rows:
-        return {"available": False, "reason": "no data returned"}
-
-    time_str, row_lat, row_lon, sst_c = rows[0]
-    if sst_c is None:
-        return {"available": False, "reason": "no reading at this point (likely cloud cover)"}
-
-    observed = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
-    age_days = (datetime.now(timezone.utc) - observed).total_seconds() / 86400
-
-    if age_days > GLSEA_MAX_AGE_DAYS:
-        return {
-            "available": False,
-            "reason": f"most recent satellite reading is {age_days:.1f} days old (limit is {GLSEA_MAX_AGE_DAYS})",
-            "observed_at_utc": observed.isoformat(),
-        }
-
-    return {
-        "available": True,
-        "observed_at_utc": observed.isoformat(),
-        "water_temp_f": round(sst_c * 9 / 5 + 32, 1),
-        "age_days": round(age_days, 1),
-        "grid_point_used": {"lat": row_lat, "lon": row_lon},
-    }
-
-
 # ---------------------------------------------------------------
 # 1f. LMHOFS READERS — new in v11.
 #
@@ -1713,19 +1707,21 @@ def validate_config():
     data.json is better for a visitor than no data.json at all.
     """
     warnings = []
-    sat_keys = set(GLSEA_POINTS)
     for pier_id, cfg in PIERS.items():
         buoy = cfg.get("buoy")
         if buoy and buoy not in STATION_GEO:
             warnings.append("%s: buoy codename '%s' is not defined in STATIONS"
                             % (pier_id, buoy))
-        sat = cfg.get("satellite")
-        if sat and sat not in sat_keys:
-            warnings.append("%s: satellite key '%s' is not defined in GLSEA_POINTS"
-                            % (pier_id, sat))
         for kind, key, _name in cfg.get("water_fallbacks", []):
-            pool = STATION_GEO if kind == "station" else sat_keys
-            if key not in pool:
+            # v16: only "station" fallbacks exist now that the
+            # satellite tier is retired (D137). Any other kind is a
+            # config error and is reported as one rather than
+            # silently resolving to nothing.
+            if kind != "station":
+                warnings.append("%s: water fallback '%s' has unsupported kind '%s'"
+                                % (pier_id, key, kind))
+                continue
+            if key not in STATION_GEO:
                 warnings.append("%s: water fallback '%s' (%s) is not defined anywhere"
                                 % (pier_id, key, kind))
         for hist_key, _borrowed in cfg.get("wind_history", []):
@@ -1762,9 +1758,9 @@ STALE_AFTER_HOURS = 3
 
 # One entry per pier. Adding a future pier = adding one entry here.
 #   buoy            key in output["stations"] for this pier's own buoy (or None)
-#   satellite       key in output["satellite_water_temp"] for its own satellite point (or None)
 #   water_fallbacks ordered borrow-chain if own sources are dark:
-#                   ("station"|"satellite", key, "Name shown to the user")
+#                   ("station", key, "Name shown to the user")
+#                   v16: the "satellite" kind is retired - see D137.
 #   wind_history    ordered list of output["station_history"] keys:
 #                   (key, None) = the pier's own station,
 #                   (key, "Name") = borrowed from a neighbor, labeled ESTIMATED
@@ -1781,7 +1777,6 @@ PIERS = {
         "lat": 44.147061,
         "lon": -87.565680,
         "buoy": "tr1",
-        "satellite": None,
         # v10: the second entry used to be ("station", "kw1", "Kewaunee").
         # No station anywhere in STATIONS carries the codename "kw1", so
         # that fallback silently resolved to nothing on every single run
@@ -1814,7 +1809,6 @@ PIERS = {
         # everyone else: LMHOFS model -> (no own buoy) -> own
         # satellite -> water_fallbacks below -> Unknown.
         "buoy": None,
-        "satellite": "manitowoc",
         # Was empty. Manitowoc's satellite point goes dark on cloudy
         # days (confirmed live 2026-07-31: unavailable, "likely cloud
         # cover") and now has nothing to fall back to if LMHOFS also
@@ -1831,7 +1825,6 @@ PIERS = {
         "lat": 43.748595,
         "lon": -87.694910,
         "buoy": "SGNW3",
-        "satellite": "sheboygan",
         # 2026-07-31 (D133/v15): mt1 relabeled from "Manitowoc" to "Open
         # Lake Buoy" - see the note on Two Rivers' identical fallback
         # above for why.
@@ -1844,7 +1837,6 @@ PIERS = {
         "lat": 44.457285,
         "lon": -87.493085,
         "buoy": None,
-        "satellite": "kewaunee",
         # 2026-07-31 (D133/v15): mt1 relabeled from "Manitowoc" to "Open
         # Lake Buoy" - see the note on Two Rivers' identical fallback
         # above for why.
@@ -1859,12 +1851,10 @@ PIERS = {
         "lat": 44.608423,
         "lon": -87.433597,
         "buoy": None,
-        "satellite": "algoma",
         # Deliberate design decision (matches the live Algoma page):
         # every borrowed water reading is labeled "Kewaunee" —
         # Algoma borrows whatever Kewaunee itself would show.
         "water_fallbacks": [
-            ("satellite", "kewaunee", "Kewaunee"),
             ("station", "tr1", "Kewaunee"),
             ("station", "mt1", "Kewaunee"),
         ],
@@ -1894,7 +1884,6 @@ PIERS = {
         "lat": 44.792050,
         "lon": -87.309627,
         "buoy": None,
-        "satellite": None,
         "water_fallbacks": [
             ("station", "tr1", "Two Rivers"),
             ("station", "45002", "Northern Lake Michigan"),
@@ -2160,7 +2149,6 @@ def resolve_water(pier_id, pier_cfg, output):
     (C13, D64).
     """
     stations = output.get("stations", {})
-    sats = output.get("satellite_water_temp", {})
 
     model = output.get("model_water_temp", {})
     if model.get("available"):
@@ -2205,23 +2193,13 @@ def resolve_water(pier_id, pier_cfg, output):
                 "change_72h_f": own.get("water_change_72h_f"),
             }
 
-    sat_key = pier_cfg.get("satellite")
-    if sat_key:
-        sat = sats.get(sat_key, {})
-        if sat.get("available") and isinstance(sat.get("water_temp_f"), (int, float)):
-            return {
-                "temp_f": sat["water_temp_f"],
-                "source": "SATELLITE",
-                "source_name": None,
-                "source_key": sat_key,
-                "source_kind": "satellite",
-                "change_24h_f": None,
-                "change_72h_f": None,
-            }
-
     for kind, key, name in pier_cfg.get("water_fallbacks", []):
-        pool = stations if kind == "station" else sats
-        src = pool.get(key, {})
+        # v16 (D137): only station fallbacks exist. Anything else is
+        # skipped rather than resolved against a pool that no longer
+        # exists - validate_config() reports it as a config error.
+        if kind != "station":
+            continue
+        src = stations.get(key, {})
         if src.get("available") and isinstance(src.get("water_temp_f"), (int, float)):
             return {
                 "temp_f": src["water_temp_f"],
@@ -2352,10 +2330,6 @@ def build_piers(output):
                     water_station_label = geo.get("label")
                     water_distance_mi = distance_from_pier(
                         cfg, STATION_GEO, water["source_key"])
-            elif water.get("source_kind") == "satellite":
-                sat_meta = output.get("satellite_water_temp", {}).get(
-                    water.get("source_key"), {})
-                water_station_label = sat_meta.get("label")
 
         # v11 (D86): the wave number gets the same treatment every other
         # number now gets — say where it came from. A buoy reading gets
@@ -2573,6 +2547,10 @@ def main():
         "stations": {},
         "zones": {},
         "station_history": {},
+        # v16 (D137): the satellite tier is retired. This key is kept,
+        # permanently empty, purely so any older frontend box that
+        # still reads it gets an empty object rather than a crash.
+        # It can be deleted once every embed is confirmed clean.
         "satellite_water_temp": {},
     }
 
@@ -2637,14 +2615,6 @@ def main():
         zone_result["beach_hazard"] = alert_result.get("beach_hazard", {"active": False})
         for codename in meta.get("codenames", [meta.get("codename", zone_id)]):
             output["zones"][codename] = zone_result
-
-    for point_id, meta in GLSEA_POINTS.items():
-        try:
-            result = fetch_glsea_point(meta["lat"], meta["lon"])
-        except Exception as err:
-            result = {"available": False, "error": str(err)}
-        result["label"] = meta["label"]
-        output["satellite_water_temp"][point_id] = result
 
     # --- v11: nearshore water temperature. This is the last raw
     # section fetched and the first one the scoring engine reaches for.
