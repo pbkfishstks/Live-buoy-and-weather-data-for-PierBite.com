@@ -464,15 +464,77 @@ CALIBRATED SATURATING TREND CURVE):
   trend term currently contributes zero everywhere. That is the point
   of the change, and it is why the 30-day replay (Step 4) belongs
   before deployment rather than after.
+
+Updated 2026-07-31 (v15, D133 — Manitowoc's false own-buoy claim on
+mt1 removed):
+
+  THE PROBLEM. Buoy 45210 (26 mi offshore, deep water) is published
+  under TWO codenames: "tr1" and "mt1" - same sensor, same instant,
+  same reading, always. Two Rivers has always used "tr1" as its own
+  designated buoy, which is a settled, unquestioned decision (D63/D64)
+  and is NOT changed by this update. Manitowoc's config separately
+  listed "mt1" - the SAME underlying buoy - as ITS OWN buoy too. That
+  meant this one physical reading got labeled LIVE/own-buoy by BOTH
+  Two Rivers AND Manitowoc, while Sheboygan, Kewaunee, and Algoma all
+  borrowed that identical reading through their own water_fallbacks
+  chains and honestly labeled it ESTIMATED. Same number, same instant,
+  three different honesty labels depending only on which pier's
+  config was asked.
+
+  THE FIX. Manitowoc's "buoy" field is now None. It falls through the
+  same resolve_water() chain every other pier already uses: LMHOFS
+  model first, then its own satellite point, then an honestly-labeled
+  ESTIMATED water_fallbacks entry (added - was empty before, so a
+  satellite gap used to mean an unnecessary hard stop), then Unknown
+  if every source is genuinely dark. Verified against live data.json:
+  this is a no-op today (LMHOFS resolves for Manitowoc at 60.1F) and
+  correctly falls through to an honest ESTIMATED/"Two Rivers" reading
+  in a simulated LMHOFS-and-satellite-down test.
+
+  A DIRECT CONSEQUENCE, FIXED IN THE SAME PASS. Once Manitowoc no
+  longer treats mt1 as its own, three other piers' fallback labels
+  that said "estimated, borrowed from Manitowoc" would have become
+  false the moment this deployed - Manitowoc's own page would show a
+  different source than what those piers claimed to be borrowing FROM
+  Manitowoc. Two Rivers, Sheboygan, and Kewaunee's water_fallbacks
+  entries that reference "mt1" are relabeled "Open Lake Buoy" instead
+  - naming what the source actually is rather than attributing it to
+  a pier that never owned it. Algoma's fallback labels are UNCHANGED
+  on purpose - Algoma's "always says Kewaunee" wording is a separate,
+  deliberate design decision (documented in its own PIERS entry) about
+  mirroring whatever Kewaunee's page shows, not a literal source
+  attribution, and is not affected by this issue. Sturgeon Bay's "Two
+  Rivers" label is also unchanged - it is accurate, since Two Rivers
+  genuinely still owns tr1.
+
+  NOT FIXED HERE, FLAGGED FOR LATER: Two Rivers' own water_fallbacks
+  entry (mt1/Open Lake Buoy) is functionally dead - if tr1 goes dark,
+  mt1 (the identical live fetch) goes dark at the same instant, so
+  this fallback can never actually fire. Pre-existing, unrelated to
+  D133, and out of scope for this single-change pass (C5).
+
+  ALSO CONFIRMED THIS PASS: the live frontend's null-source fallback
+  text reads "Source pending," not "Unknown" - inconsistent with the
+  documented four-tier system (D12) but NOT broken (no blank render,
+  no crash, no "undefined"). Flagged for a separate, future wording
+  decision; not touched here.
 """
 
-# File: fetch-data-2026-07-27-v12-warm-cap-nearshore-only.py
-# Delivered: 2026-07-27 (v12 — Phase 1.3b: warm-water cap now fires
-#            ONLY on a MODELED/nearshore reading, never on a LIVE
-#            offshore buoy or an ESTIMATED/borrowed reading. See D18,
-#            D84. No output key changed; no effect on today's live
-#            scores.)
-# Supersedes: fetch-data-2026-07-27-v11-lmhofs-nearshore-water-temperature.py
+# File: fetch-data-2026-07-31-v15-mt1-manitowoc-honesty-fix.py
+# Delivered: 2026-07-31 (v15 — D133: removed Manitowoc's false claim
+#            on mt1 as its own buoy; it now falls through the same
+#            LMHOFS -> satellite -> honest-fallback -> Unknown chain
+#            as every other pier. Relabeled the "mt1" fallback used by
+#            Two Rivers, Sheboygan, and Kewaunee from "Manitowoc" to
+#            "Open Lake Buoy" so those labels stay true now that
+#            Manitowoc no longer owns it. Algoma and Sturgeon Bay
+#            untouched. No output KEY added, removed, or renamed;
+#            same shape as v14, different values on a bad-data day
+#            only. Verified: no-op today, confirmed against live
+#            data.json.)
+# Supersedes: the v14 file (2026-07-29, Phase 1.3c trend fix) — no
+#            renamed copy of it exists in this project's records, so
+#            it isn't cited here by filename to avoid guessing one.
 
 import json
 import re
@@ -1725,7 +1787,15 @@ PIERS = {
         # that fallback silently resolved to nothing on every single run
         # while making the config look as though Two Rivers had a
         # Kewaunee backup. It never did. Removed.
-        "water_fallbacks": [("station", "mt1", "Manitowoc")],
+        # 2026-07-31 (D133/v15): label changed from "Manitowoc" to "Open
+        # Lake Buoy". mt1 was never Manitowoc's reading - it is buoy
+        # 45210 under a second codename, the same offshore instrument
+        # this pier's own "tr1" reads. Attributing it to a pier misled;
+        # naming the actual source does not. (In practice this fallback
+        # never fires: tr1 and mt1 are the same live fetch, so if tr1
+        # goes dark mt1 is dark at the same instant. Left as-is; fixing
+        # that redundancy is a separate, later change, not this one.)
+        "water_fallbacks": [("station", "mt1", "Open Lake Buoy")],
         "wind_history": [("trw", None)],
         "zone": "trz",
     },
@@ -1733,9 +1803,26 @@ PIERS = {
         "name": "Manitowoc",
         "lat": 44.091354,
         "lon": -87.643820,
-        "buoy": "mt1",
+        # 2026-07-31 (D133/v15): "buoy" used to be "mt1". mt1 is buoy
+        # 45210, 26 miles offshore - the SAME reading Sheboygan,
+        # Kewaunee, and Algoma all borrow through their own
+        # water_fallbacks and honestly label ESTIMATED. Manitowoc was
+        # the only pier calling this exact same reading its own LIVE
+        # buoy. Same sensor, same instant, two different honesty
+        # labels depending only on which pier's config was asked.
+        # Removed so Manitowoc falls through the same chain as
+        # everyone else: LMHOFS model -> (no own buoy) -> own
+        # satellite -> water_fallbacks below -> Unknown.
+        "buoy": None,
         "satellite": "manitowoc",
-        "water_fallbacks": [],
+        # Was empty. Manitowoc's satellite point goes dark on cloudy
+        # days (confirmed live 2026-07-31: unavailable, "likely cloud
+        # cover") and now has nothing to fall back to if LMHOFS also
+        # has a gap - it would show Unknown when a real, honestly-
+        # labeled reading is available. tr1 (buoy 45210, Two Rivers'
+        # own designated buoy) is a genuine, currently-live source;
+        # borrowing it and saying so is honest, not a workaround.
+        "water_fallbacks": [("station", "tr1", "Two Rivers")],
         "wind_history": [("mtw", None)],
         "zone": "mtz",
     },
@@ -1745,7 +1832,10 @@ PIERS = {
         "lon": -87.694910,
         "buoy": "SGNW3",
         "satellite": "sheboygan",
-        "water_fallbacks": [("station", "mt1", "Manitowoc"), ("station", "tr1", "Two Rivers")],
+        # 2026-07-31 (D133/v15): mt1 relabeled from "Manitowoc" to "Open
+        # Lake Buoy" - see the note on Two Rivers' identical fallback
+        # above for why.
+        "water_fallbacks": [("station", "mt1", "Open Lake Buoy"), ("station", "tr1", "Two Rivers")],
         "wind_history": [("KSBM", None)],
         "zone": "LMZ643",
     },
@@ -1755,7 +1845,10 @@ PIERS = {
         "lon": -87.493085,
         "buoy": None,
         "satellite": "kewaunee",
-        "water_fallbacks": [("station", "tr1", "Two Rivers"), ("station", "mt1", "Manitowoc")],
+        # 2026-07-31 (D133/v15): mt1 relabeled from "Manitowoc" to "Open
+        # Lake Buoy" - see the note on Two Rivers' identical fallback
+        # above for why.
+        "water_fallbacks": [("station", "tr1", "Two Rivers"), ("station", "mt1", "Open Lake Buoy")],
         "wind_history": [("kww", None)],
         "zone": "kwz",
     },
