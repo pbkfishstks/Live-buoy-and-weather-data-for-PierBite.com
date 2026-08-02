@@ -4,6 +4,17 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
+Updated 2026-08-02 (v18, decision D173, closes R71): wind_headline now
+carries "observed_at_utc" and "age_hours" for every pier, in every
+branch (measured / forecast / unavailable). Fixes a real honesty gap:
+previously a 9-hour-old wind reading displayed as a filled "Measured"
+dot with no way for the frontend to know it was stale — the object had
+no timestamp of any kind even though the station_history record it was
+built from carried one one line away. PURELY ADDITIVE: two new keys
+only, no existing key removed or changed, no scoring or tier logic
+touched. observed_at_utc is null on forecast/unavailable branches
+because there is no real observation to timestamp in those cases.
+
 Updated 2026-07-17: added Algoma — dormant AGMW3 wind station (wired
 for automatic reactivation), shared LMZ542 marine zone codename
 "algz", and a dormant GLSEA satellite point for Algoma harbor. Also
@@ -2374,6 +2385,7 @@ def build_piers(output):
     network requests."""
     piers_out = {}
     model_block = output.get("model_water_temp", {})
+    now = datetime.now(timezone.utc)   # v18 (D173) — single reference time for wind_headline age_hours
     for pier_id, cfg in PIERS.items():
         stations = output.get("stations", {})
         zones = output.get("zones", {})
@@ -2394,6 +2406,7 @@ def build_piers(output):
             hist = histories.get(hist_key)
             if hist and hist.get("available") and hist.get("hourly"):
                 wind_factor = score_wind(hist, None, borrowed_from)
+                obs_iso = hist.get("observed_at_utc")   # v18 (D173)
                 wind_headline = {
                     "dir": hist.get("current_wind_dir"),
                     "mph": hist.get("current_wind_mph"),
@@ -2401,6 +2414,11 @@ def build_piers(output):
                     "mph_high": None,
                     "source": wind_factor["source"],
                     "source_name": wind_factor.get("source_name"),
+                    "observed_at_utc": obs_iso,   # v18 (D173)
+                    "age_hours": (
+                        round((now - datetime.fromisoformat(obs_iso)).total_seconds() / 3600.0, 1)
+                        if obs_iso else None
+                    ),   # v18 (D173)
                 }
                 wind_hist_key = hist_key
                 break
@@ -2414,10 +2432,13 @@ def build_piers(output):
                     "mph_high": forecast.get("wind_mph_high"),
                     "source": "FORECAST",
                     "source_name": None,
+                    "observed_at_utc": None,   # v18 (D173) — forecast has no observation timestamp
+                    "age_hours": None,   # v18 (D173)
                 }
             else:
                 wind_headline = {"dir": None, "mph": None, "mph_low": None,
-                                 "mph_high": None, "source": None, "source_name": None}
+                                 "mph_high": None, "source": None, "source_name": None,
+                                 "observed_at_utc": None, "age_hours": None}   # v18 (D173)
 
         # --- Water factor.
         water = resolve_water(pier_id, cfg, output)
