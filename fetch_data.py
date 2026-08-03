@@ -4,6 +4,18 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
+Updated 2026-08-03 (v19, decision D182): score_wind() now returns
+"LIVE_STALE" instead of "LIVE" when a non-borrowed wind reading is
+older than STALE_AFTER_HOURS (3h) — the same threshold already
+published to the frontend in v17. Fixes the actual root cause behind
+R71/D173: the green "Measured" dot was hardcoded from source code
+alone with zero age check, so a stale-but-real reading and a
+fresh one were visually identical. ESTIMATED (borrowed) readings are
+untouched — that tier already has its own distinct meaning and this
+does not overload it. FORECAST and unavailable branches are untouched.
+No score, weight, or factor changed — this only relabels the source
+string a frontend uses to choose a dot color.
+
 Updated 2026-08-02 (v18, decision D173, closes R71): wind_headline now
 carries "observed_at_utc" and "age_hours" for every pier, in every
 branch (measured / forecast / unavailable). Fixes a real honesty gap:
@@ -2053,12 +2065,19 @@ def westerly_component(dir_code):
     return math.cos((deg - 270.0) * math.pi / 180.0)
 
 
-def score_wind(history, zone_forecast, borrowed_from):
+def score_wind(history, zone_forecast, borrowed_from, now=None):
     """0-100 wind factor. Prefers real hourly history (LIVE, or
-    ESTIMATED when the history belongs to a neighbor); falls back
-    to the zone forecast direction (FORECAST). Ported exactly from
-    the Two Rivers page, including the 'recent onshore shift'
-    penalty."""
+    LIVE_STALE past STALE_AFTER_HOURS, or ESTIMATED when the history
+    belongs to a neighbor); falls back to the zone forecast direction
+    (FORECAST). Ported exactly from the Two Rivers page, including the
+    'recent onshore shift' penalty.
+
+    v19 (D182): a non-borrowed reading older than STALE_AFTER_HOURS
+    returns LIVE_STALE instead of LIVE, so the frontend can render a
+    visually distinct dot for "real reading, but running late" instead
+    of showing the same filled dot as a fresh one. Borrowed (ESTIMATED)
+    readings are not affected — that source value already carries its
+    own distinct meaning and staleness there would overload it."""
     if history and history.get("available") and history.get("hourly"):
         hourly = history["hourly"]
         comps = [westerly_component(h.get("dir")) for h in hourly]
@@ -2070,6 +2089,12 @@ def score_wind(history, zone_forecast, borrowed_from):
             score = round(clamp(score - 22, 5, 95))
         if borrowed_from:
             return {"score": score, "source": "ESTIMATED", "source_name": borrowed_from}
+        age_hours = None
+        obs_iso = history.get("observed_at_utc")
+        if obs_iso and now is not None:
+            age_hours = (now - datetime.fromisoformat(obs_iso)).total_seconds() / 3600.0
+        if age_hours is not None and age_hours > STALE_AFTER_HOURS:
+            return {"score": score, "source": "LIVE_STALE", "source_name": None}
         return {"score": score, "source": "LIVE", "source_name": None}
     if zone_forecast and zone_forecast.get("available") and zone_forecast.get("wind_dir"):
         score = round(clamp(50 + 40 * westerly_component(zone_forecast["wind_dir"]), 5, 95))
@@ -2333,8 +2358,9 @@ def band_for(score):
 #   Measured (filled) / Modeled (half) / Forecast (quarter) /
 #   Unknown (hollow).
 SOURCE_TIERS = {
-    "LIVE":      {"tier": "Measured", "symbol": "\u25CF", "locality": "at_pier"},
-    "ESTIMATED": {"tier": "Measured", "symbol": "\u25CF", "locality": "borrowed"},
+    "LIVE":       {"tier": "Measured", "symbol": "\u25CF", "locality": "at_pier"},
+    "LIVE_STALE": {"tier": "Measured", "symbol": "\u25CF", "locality": "at_pier"},   # v19 (D182) — genuinely a measurement, tier unchanged; only the frontend dot rendering distinguishes it from fresh LIVE
+    "ESTIMATED":  {"tier": "Measured", "symbol": "\u25CF", "locality": "borrowed"},
     "MODELED":   {"tier": "Modeled",  "symbol": "\u25D0", "locality": "at_pier"},
     "FORECAST":  {"tier": "Forecast", "symbol": "\u25D4", "locality": "area"},
     "MISSING":   {"tier": "Unknown",  "symbol": "\u25CB", "locality": None},
@@ -2405,7 +2431,7 @@ def build_piers(output):
         for hist_key, borrowed_from in cfg.get("wind_history", []):
             hist = histories.get(hist_key)
             if hist and hist.get("available") and hist.get("hourly"):
-                wind_factor = score_wind(hist, None, borrowed_from)
+                wind_factor = score_wind(hist, None, borrowed_from, now)   # v19 (D182) — now passed for staleness check
                 obs_iso = hist.get("observed_at_utc")   # v18 (D173)
                 wind_headline = {
                     "dir": hist.get("current_wind_dir"),
