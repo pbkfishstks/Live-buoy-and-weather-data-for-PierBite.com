@@ -1,0 +1,27 @@
+# PIERBITE workflow | 2026-08-18 | v1 | Manual-only probe runner
+#
+# This workflow does NOT run on a schedule and does NOT touch data.json,
+# the live site, or fetch_data.py. It only runs when you click the
+# button, and all it does is print a report you copy back into chat.
+#
+# Safe to leave in the repository permanently.
+
+name: Run diagnostic probe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the repository files
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run the probe
+        run: python lmhofs-backup-and-buoy-status-probe-2026-08-18-v1.py
