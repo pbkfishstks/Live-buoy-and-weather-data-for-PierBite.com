@@ -1,4 +1,7 @@
-# PIERBITE workflow | 2026-08-18 | v1 | Manual-only probe runner
+# PIERBITE workflow | 2026-08-19 | v2 | Manual-only probe runner
+#
+# CHANGE FROM v1: points at the v2 probe script instead of the v1 script.
+# Nothing else is different.
 #
 # This workflow does NOT run on a schedule and does NOT touch data.json,
 # the live site, or fetch_data.py. It only runs when you click the
@@ -24,4 +27,4 @@ jobs:
           python-version: '3.11'
 
       - name: Run the probe
-        run: python lmhofs-backup-and-buoy-status-probe-2026-08-18-v1.py
+        run: python lmhofs-forecast-accuracy-and-mirror-probe-2026-08-19-v2.py
