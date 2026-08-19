@@ -4,6 +4,19 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
+Updated 2026-08-19 (v20, decisions D204/D205/D207): the LMHOFS nowcast
+file this script reads changed from fields.n000.nc to fields.n006.nc.
+n000 is valid SIX HOURS BEFORE the model cycle it belongs to; n006 is
+valid AT the cycle. Production had been reading n000 while publishing
+the cycle time beside it, so every water temperature on the site was six
+hours older than it claimed, and the D82 age thresholds (disclose at 12h,
+refuse at 36h) each understated true data age by six hours. This is a
+one-constant change: LMHOFS_FIELDS_FILE feeds BOTH read sites, so the
+72-hour trend shifts at both ends and its measured window is unchanged.
+No score, weight, factor, key, or threshold value was touched — the same
+numbers now mean what they say. See the constant's own comment for the
+full mechanism and for why it must never be split into two constants.
+
 Updated 2026-08-03 (v19, decision D182): score_wind() now returns
 "LIVE_STALE" instead of "LIVE" when a non-borrowed wind reading is
 older than STALE_AFTER_HOURS (3h) — the same threshold already
@@ -291,6 +304,15 @@ toward. It changes what number the site publishes, on purpose.
   "fields.f000.nc" is the forecast. Only the much smaller stations files
   carry "nowcast" in the name. Filtering fields files on "nowcast"
   matches nothing at all.
+
+  SECOND MECHANISM FACT, PART TWO (v20) - A NOWCAST FILE IS NOT VALID AT
+  ITS OWN CYCLE TIME. The nnn in fields.nNNN.nc is an hour offset into a
+  run that covers the six hours ENDING at the cycle. n000 is valid six
+  hours BEFORE the cycle time; n006 is valid AT it. This is invisible
+  from the filename and from the directory listing, and it was wrong in
+  production for months. STANDING RULE (D207): valid time is READ FROM
+  THE FILE - the Times variable, or the numeric time variable against
+  the epoch in the .das - and NEVER inferred from a filename.
 
   THIRD MECHANISM FACT - siglay index 0 is the SURFACE layer, confirmed
   by measurement on 2026-07-25 rather than assumed (D65). Index 0 could
@@ -829,9 +851,34 @@ LMHOFS_BASE_DIR = (
     "https://opendap.co-ops.nos.noaa.gov/thredds/dodsC/"
     "NOAA/LMHOFS/MODELS/{yyyy}/{mm}/{dd}/"
 )
-# n000 = NOWCAST. f000 would be the forecast. NOAA does not put the
-# word "nowcast" anywhere in this filename — see the module docstring.
-LMHOFS_FIELDS_FILE = "lmhofs.t{cycle}z.{yyyy}{mm}{dd}.fields.n000.nc"
+# nNNN = NOWCAST hour. fNNN would be the forecast. NOAA does not put
+# the word "nowcast" anywhere in this filename — see the module
+# docstring.
+#
+# WHY n006 AND NOT n000 (v20, decision D204/D205 — READ THIS BEFORE
+# CHANGING IT BACK). A nowcast run does not describe a single instant.
+# It covers the SIX HOURS ENDING AT ITS OWN CYCLE TIME, one file per
+# hour, n000 through n006. So for the 18z run:
+#
+#     n000  is valid at 12:00 UTC   (six hours BEFORE the cycle)
+#     n006  is valid at 18:00 UTC   (exactly AT the cycle)
+#
+# Production read n000 from v11 until 2026-08-19, which meant every
+# water temperature on the site was six hours older than the run_time
+# published beside it, and both age thresholds below silently
+# understated true data age by six hours. Confirmed by two independent
+# methods inside the file that agreed — the Times text variable and the
+# numeric time variable checked against the epoch declared in the
+# file's own .das — not inferred from the filename (D207).
+#
+# THIS CONSTANT IS USED AT BOTH READ SITES: lmhofs_find_run() for
+# today's value and lmhofs_find_run_near() for the far end of the
+# 72-hour trend. That is deliberate and load-bearing. Because both ends
+# shift by the same six hours, the measured trend window is unchanged.
+# If anyone ever splits this into two constants, the published
+# "72-hour trend" becomes a 66- or 78-hour change wearing a 72-hour
+# label. Do not split it.
+LMHOFS_FIELDS_FILE = "lmhofs.t{cycle}z.{yyyy}{mm}{dd}.fields.n006.nc"
 
 # Model cycles are published at 00, 06, 12 and 18 UTC, but the newest
 # one is not always there. Walk backwards until something answers.
