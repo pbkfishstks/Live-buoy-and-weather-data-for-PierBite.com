@@ -1,7 +1,9 @@
-# PIERBITE workflow | 2026-08-20 | v4 | Manual-only probe runner
+# PIERBITE workflow | 2026-08-20 | v5 | Manual-only probe runner
 #
-# CHANGE FROM v3: points at the GLOS Seagull station survey probe instead
-# of the LMHOFS forecast-accuracy probe. Nothing else is different.
+# CHANGE FROM v4: points at probe v2 instead of probe v1.
+# v1's PART 3 and PART 4 produced invalid results (it read the global
+# Seagull parameter catalogue instead of each platform's own sensors).
+# Nothing else about this workflow is different.
 #
 # This workflow does NOT run on a schedule and does NOT touch data.json,
 # the live site, or fetch_data.py. It only runs when you click the
@@ -27,4 +29,4 @@ jobs:
           python-version: '3.11'
 
       - name: Run the probe
-        run: python glos-seagull-station-survey-probe-2026-08-20-v1.py
+        run: python glos-seagull-station-survey-probe-2026-08-20-v2.py
