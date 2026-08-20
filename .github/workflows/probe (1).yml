@@ -1,32 +1,27 @@
-# PIERBITE workflow | 2026-08-20 | v5 | Manual-only probe runner
-#
-# CHANGE FROM v4: points at probe v2 instead of probe v1.
-# v1's PART 3 and PART 4 produced invalid results (it read the global
-# Seagull parameter catalogue instead of each platform's own sensors).
-# Nothing else about this workflow is different.
-#
-# This workflow does NOT run on a schedule and does NOT touch data.json,
-# the live site, or fetch_data.py. It only runs when you click the
-# button, and all it does is print a report you copy back into chat.
-#
-# Safe to leave in the repository permanently. Costs nothing.
-
+# PIERBITE | Workflow repoint v6 | 2026-08-20T14:12:28Z
+# GitHub-side filename MUST stay exactly: .github/workflows/probe (1).yml
+# (do not rename the file on GitHub - only replace its contents)
+# This version points at: glos-probe-v3-2026-08-20-v1.py
+# Previous version (v5) pointed at: lmhofs-forecast-accuracy-and-mirror-probe-2026-08-19-v2.py
 name: Run diagnostic probe
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Get the repository files
+      - name: Check out repo
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: Run the probe
-        run: python glos-seagull-station-survey-probe-2026-08-20-v2.py
+      - name: Run GLOS probe v3
+        run: python glos-probe-v3-2026-08-20-v1.py
