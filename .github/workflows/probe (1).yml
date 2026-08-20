@@ -1,13 +1,13 @@
-# PIERBITE workflow | 2026-08-19 | v3 | Manual-only probe runner
+# PIERBITE workflow | 2026-08-20 | v4 | Manual-only probe runner
 #
-# CHANGE FROM v2: points at the v3 probe script instead of the v2 script.
-# Nothing else is different.
+# CHANGE FROM v3: points at the GLOS Seagull station survey probe instead
+# of the LMHOFS forecast-accuracy probe. Nothing else is different.
 #
 # This workflow does NOT run on a schedule and does NOT touch data.json,
 # the live site, or fetch_data.py. It only runs when you click the
 # button, and all it does is print a report you copy back into chat.
 #
-# Safe to leave in the repository permanently.
+# Safe to leave in the repository permanently. Costs nothing.
 
 name: Run diagnostic probe
 
@@ -27,4 +27,4 @@ jobs:
           python-version: '3.11'
 
       - name: Run the probe
-        run: python lmhofs-aligned-forecast-accuracy-probe-2026-08-19-v3.py
+        run: python glos-seagull-station-survey-probe-2026-08-20-v1.py
