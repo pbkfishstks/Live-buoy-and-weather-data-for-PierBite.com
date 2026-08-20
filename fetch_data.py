@@ -4,6 +4,30 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
+Updated 2026-08-20 (v21, decision D243): Two Rivers' wind history now
+comes from NESHOTAH (GLOS Seagull, obs_dataset_id 598 - Neshotah Park
+Met Station), REPLACING KMTW (Manitowoc Airport, 5.9 mi inland) outright,
+not supplementing it. Two independent GitHub Actions probe runs
+(glos-probe-v3 v1/v2, 2026-08-20) each measured >=72h of continuous
+~20-minute-cadence wind history direct from GLOS's ERDDAP instance -
+well past the 72h threshold this project uses to decide REPLACE vs
+SUPPLEMENT. Neshotah has no water thermometer (confirmed from its own
+per-platform sensor list, not inferred from the name - D207), so this
+is a wind-only change; the water-temperature ladder (D189) is untouched.
+GLOS reports wind_speed in m/s; it is converted to mph at ingestion
+(x2.23694), matching this file's long-standing rule that no raw non-mph
+unit is ever carried past the fetch function that reads it. KMTW itself
+is untouched and keeps serving Manitowoc under its own codename ("mtw");
+only the "trw" codename - previously KMTW, now NESHOTAH - was repointed,
+so Two Rivers' PIERS config needed no change at all. Neshotah's exact
+published lat/lon are NOT YET in this file (open item - see the
+STATION_HISTORY entry's own comment): until confirmed, Two Rivers' wind
+distance figure will show as unavailable rather than a guessed number,
+the same graceful behavior this file already uses for any station with
+an unknown position. No frontend change was needed or made (D220 - the
+Buoy Watch map draws only what data.json publishes, so NESHOTAH appears
+on it automatically now that it exists here).
+
 Updated 2026-08-19 (v20, decisions D204/D205/D207): the LMHOFS nowcast
 file this script reads changed from fields.n000.nc to fields.n006.nc.
 n000 is valid SIX HOURS BEFORE the model cycle it belongs to; n006 is
@@ -760,11 +784,32 @@ NDBC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
 #     the NWS API (full precision); the dormant shore stations are not
 #     in the NWS API at all and come from the NDBC station table.
 STATION_HISTORY = {
-    # 5.9 mi from the Two Rivers pier, 3.5 mi from the Manitowoc pier -
-    # a good illustration of why distance must be stored per PIER, not
-    # per station.
-    "KMTW": {"label": "Manitowoc Airport", "codenames": ["trw", "mtw"],
+    # v21 (D243): NESHOTAH now owns the "trw" codename - Two Rivers' wind
+    # source. KMTW keeps serving Manitowoc ("mtw") only; 3.5 mi from that
+    # pier, so still a good illustration of why distance is stored per
+    # PIER, not per station.
+    "KMTW": {"label": "Manitowoc Airport", "codenames": ["mtw"],
              "lat": 44.13333, "lon": -87.68333},
+    # v21 (D243): GLOS Seagull tower, ~0.6 mi from the Two Rivers pier per
+    # GLOS's own platform metadata (glos-probe-v3, 2026-08-20) - REPLACES
+    # KMTW (5.9 mi inland) as Two Rivers' wind source outright. Wind only;
+    # confirmed no water thermometer on this platform. "source": "glos"
+    # routes it to fetch_glos_wind_history() instead of the NWS airport
+    # fetcher below.
+    # OPEN ITEM: lat/lon are None below because this project only ever
+    # publishes a position it has verified (D14/D63 - every other entry
+    # here was confirmed against the NWS API or a map). Neshotah's exact
+    # published coordinates were not captured by either probe run, since
+    # neither queried for them. Until a real value is confirmed (Paul
+    # checking GLOS's platform page for obs_598, or a short follow-up
+    # probe), wind_distance_mi for Two Rivers will show as unavailable
+    # rather than a guessed number - graceful, not broken; see
+    # distance_from_pier(). Fill in real lat/lon here as soon as they're
+    # confirmed, and Two Rivers' Buoy Watch dot placement (D228, Step 2)
+    # is unblocked at the same time.
+    "NESHOTAH": {"label": "Neshotah Park Met Station (GLOS Seagull, ~0.6 mi from the Two Rivers pier \u2014 wind only, replaces KMTW/Manitowoc Airport as of v21)",
+                 "codenames": ["trw"], "source": "glos", "glos_obs_dataset_id": 598,
+                 "lat": None, "lon": None},
     "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)",
              "lat": 43.77483, "lon": -87.84897},
     # 0.55 mi from the Kewaunee pier - a genuinely local wind reading,
@@ -1310,6 +1355,107 @@ def fetch_station_history(station_id):
 
     # Downsample: for each whole hour back from now, keep the single
     # real reading closest to that hour mark (skip hours with no data).
+    hourly = []
+    max_hours = min(actual_hours_covered, 72)
+    for h in range(max_hours, -1, -1):
+        target = latest["time"] - timedelta(hours=h)
+        closest = min(raw, key=lambda r: abs((r["time"] - target).total_seconds()))
+        if abs((closest["time"] - target).total_seconds()) <= 1800:  # within 30 min
+            hourly.append({"hours_ago": h, "dir": closest["wind_dir"], "mph": closest["wind_mph"]})
+
+    return {
+        "available": True,
+        "observed_at_utc": latest["time"].isoformat(),
+        "current_wind_dir": latest["wind_dir"],
+        "current_wind_mph": latest["wind_mph"],
+        "actual_hours_covered": actual_hours_covered,
+        "hourly": hourly,
+    }
+
+
+# ---------------------------------------------------------------
+# NEW in v21 (D243) — GLOS Seagull wind stations. Same real-hourly-
+# history contract as fetch_station_history() just above (same chunked
+# request shape, same honesty-about-actual-window behavior, same
+# downsample-to-one-reading-per-hour), fed by GLOS Seagull's ERDDAP
+# instance instead of the NWS observation API. First user: NESHOTAH
+# (Two Rivers wind, replacing KMTW). Variable names ("wind_speed",
+# "wind_from_direction") and units (m/s, degrees) are read from ERDDAP's
+# .das metadata, not assumed - see D236/D238/D239 for the investigation
+# that established this. Only these two exact variables are requested
+# (no QC-flag names, no gust) - the same minimal shape the NWS airport
+# fetcher above already uses.
+# ---------------------------------------------------------------
+GLOS_ERDDAP_CSV_URL = ("https://seagull-erddap.glos.org/erddap/tabledap/"
+                       "obs_{ods}.csv?{cols}&time>={start}&time<={end}")
+MS_TO_MPH = 2.23694  # confirmed from ERDDAP .das units, not assumed (D236)
+
+
+def fetch_glos_wind_history(dataset_id):
+    """Get real, timestamped wind readings from a GLOS Seagull ERDDAP
+    station (obs_dataset_id). Mirrors fetch_station_history()'s chunked-
+    request / honest-window / hourly-downsample approach — see that
+    function's docstring for why it's built this way; the same reasoning
+    applies here. wind_speed arrives in m/s and is converted to mph at
+    ingestion so nothing downstream ever sees a raw m/s value."""
+    now = datetime.now(timezone.utc)
+    cols = "time,wind_speed,wind_from_direction"
+    chunk_bounds = [
+        (now - timedelta(hours=73), now - timedelta(hours=49)),
+        (now - timedelta(hours=49), now - timedelta(hours=25)),
+        (now - timedelta(hours=25), now),
+    ]
+
+    raw = []
+    for chunk_start, chunk_end in chunk_bounds:
+        start_param = chunk_start.strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_param = chunk_end.strftime("%Y-%m-%dT%H:%M:%SZ")
+        url = GLOS_ERDDAP_CSV_URL.format(
+            ods=dataset_id, cols=cols, start=start_param, end=end_param)
+        try:
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "pierbite-fetch-data"})
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                csv_text = resp.read().decode("utf-8", errors="replace")
+        except Exception:
+            # A 404 with "nRows = 0" means this chunk genuinely has no
+            # readings in that window (confirmed real ERDDAP behavior,
+            # not a fault worth aborting over) - same per-chunk tolerance
+            # fetch_station_history already uses for the NWS side.
+            continue
+
+        lines = [ln for ln in csv_text.strip().split("\n") if ln != ""]
+        if len(lines) < 3:
+            continue  # header + units row only, no data rows this chunk
+        columns = lines[0].split(",")
+        for line in lines[2:]:  # skip header row + units row
+            cells = line.split(",")
+            row = dict(zip(columns, cells))
+            ts = row.get("time")
+            ws = row.get("wind_speed")
+            wd = row.get("wind_from_direction")
+            if not ts or ws in (None, "", "NaN") or wd in (None, "", "NaN"):
+                continue
+            try:
+                when = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                ws_f = float(ws)
+                wd_f = float(wd)
+            except ValueError:
+                continue
+            raw.append({
+                "time": when,
+                "wind_mph": round(ws_f * MS_TO_MPH, 1),
+                "wind_dir": degrees_to_compass(wd_f),
+            })
+
+    if not raw:
+        return {"available": False}
+
+    raw.sort(key=lambda r: r["time"])
+    latest = raw[-1]
+    earliest = raw[0]
+    actual_hours_covered = round((latest["time"] - earliest["time"]).total_seconds() / 3600)
+
     hourly = []
     max_hours = min(actual_hours_covered, 72)
     for h in range(max_hours, -1, -1):
@@ -2865,7 +3011,12 @@ def main():
 
     for station_id, meta in STATION_HISTORY.items():
         try:
-            history = fetch_station_history(station_id)
+            # v21 (D243): GLOS-sourced stations (NESHOTAH) use a
+            # different fetcher than the NWS airport stations here.
+            if meta.get("source") == "glos":
+                history = fetch_glos_wind_history(meta["glos_obs_dataset_id"])
+            else:
+                history = fetch_station_history(station_id)
         except Exception as err:
             history = {"available": False, "error": str(err)}
         history["label"] = meta["label"]
