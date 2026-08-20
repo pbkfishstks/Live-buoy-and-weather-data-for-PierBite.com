@@ -1,8 +1,8 @@
-# PIERBITE | Workflow repoint v6 | 2026-08-20T14:12:28Z
+# PIERBITE | Workflow repoint v7 | 2026-08-20T19:10:00Z
 # GitHub-side filename MUST stay exactly: .github/workflows/probe (1).yml
 # (do not rename the file on GitHub - only replace its contents)
-# This version points at: glos-probe-v3-2026-08-20-v1.py
-# Previous version (v5) pointed at: lmhofs-forecast-accuracy-and-mirror-probe-2026-08-19-v2.py
+# This version points at: glos-probe-v3-2026-08-20-v2.py
+# Previous version (v6) pointed at: glos-probe-v3-2026-08-20-v1.py
 name: Run diagnostic probe
 
 on:
@@ -24,4 +24,4 @@ jobs:
           python-version: "3.11"
 
       - name: Run GLOS probe v3
-        run: python glos-probe-v3-2026-08-20-v1.py
+        run: python glos-probe-v3-2026-08-20-v2.py
