@@ -1,13 +1,14 @@
-# PIERBITE | Workflow repoint v12 | 2026-08-21T16:05:00Z
+# PIERBITE | Workflow repoint v13 | 2026-08-21T17:10:00Z
 # GitHub-side filename MUST stay exactly: .github/workflows/probe (1).yml
 # (do not rename the file on GitHub - only replace its contents)
-# This version points at: port-washington-node-and-station-probe-2026-08-21-v3.py
-# Previous version (v11) pointed at: ...-v2.py
-#   v2's Stage 3 SUCCEEDED (node 17831 derived and self-checked). Only
-#   Stage 4 failed - raw square brackets in the OPeNDAP query, which
-#   NOAA's Tomcat rejects with HTTP 400. v3 percent-escapes them using
-#   production's own helper, and splits failures into CRITICAL vs
-#   ADVISORY so an optional stage can never bury a good answer again.
+# This version points at: port-washington-node-and-station-probe-2026-08-21-v4.py
+# Previous version (v12) pointed at: ...-v3.py
+#   v3 passed all critical checks and CONFIRMED node 17831 on a second
+#   run. Its Stage 6 printed an EMPTY variable list and then wrongly
+#   concluded station 250 has no water temperature - a false negative
+#   caused by a line-oriented .das parser, not by anything at GLOS.
+#   v4 copies the repository's proven quote-aware parser verbatim and
+#   treats an empty variable list as a fault, never as a finding.
 name: Run diagnostic probe
 
 on:
@@ -29,4 +30,4 @@ jobs:
           python-version: "3.11"
 
       - name: Run Port Washington probe
-        run: python port-washington-node-and-station-probe-2026-08-21-v3.py
+        run: python port-washington-node-and-station-probe-2026-08-21-v4.py
