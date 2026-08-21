@@ -4,6 +4,25 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
+Updated 2026-08-21 (v22, decision D250): NESHOTAH's published latitude
+and longitude are now filled in - 44.151258, -87.554115 - closing the
+one open item v21 deliberately left behind. This is a TWO-VALUE change
+and nothing else: no score, weight, threshold, factor, key, station,
+codename or fetch path was touched, and an AST-stripped diff against
+the live v21 shows exactly two changed literals. The coordinates were
+read from GLOS's own obs-datasets GeoJSON by a dedicated read-only
+probe that self-checked its own result against an expected pier
+distance (and correctly rejected a deliberately lat/lon-swapped
+adversarial case), and they were taken from that run's downloaded log
+archive rather than trusted from a green checkmark. VISIBLE EFFECT:
+Two Rivers' wind reading stops reporting locality "unknown" and
+reports "at_pier" with wind_distance_mi ~0.64. That was never a
+dishonest display - the reading was always genuinely Measured - but it
+was backwards: the closest wind station on the whole site was showing
+as the least located one, purely because this file refuses to publish
+a position it has not verified. It now has one. Two Rivers' Buoy Watch
+dot placement (D228) is unblocked by the same two values.
+
 Updated 2026-08-20 (v21, decision D243): Two Rivers' wind history now
 comes from NESHOTAH (GLOS Seagull, obs_dataset_id 598 - Neshotah Park
 Met Station), REPLACING KMTW (Manitowoc Airport, 5.9 mi inland) outright,
@@ -796,20 +815,31 @@ STATION_HISTORY = {
     # confirmed no water thermometer on this platform. "source": "glos"
     # routes it to fetch_glos_wind_history() instead of the NWS airport
     # fetcher below.
-    # OPEN ITEM: lat/lon are None below because this project only ever
-    # publishes a position it has verified (D14/D63 - every other entry
-    # here was confirmed against the NWS API or a map). Neshotah's exact
-    # published coordinates were not captured by either probe run, since
-    # neither queried for them. Until a real value is confirmed (Paul
-    # checking GLOS's platform page for obs_598, or a short follow-up
-    # probe), wind_distance_mi for Two Rivers will show as unavailable
-    # rather than a guessed number - graceful, not broken; see
-    # distance_from_pier(). Fill in real lat/lon here as soon as they're
-    # confirmed, and Two Rivers' Buoy Watch dot placement (D228, Step 2)
-    # is unblocked at the same time.
+    # v22 (D250): lat/lon CONFIRMED and filled in. They were None in v21
+    # because this project only ever publishes a position it has verified
+    # (D14/D63), and neither earlier probe run happened to query for
+    # coordinates. A dedicated read-only probe
+    # (neshotah-portwashington-coordinates-probe-2026-08-20-v1.py) pulled
+    # them straight from GLOS's own obs-datasets GeoJSON for obs_598,
+    # matched the platform name exactly, and self-checked the resulting
+    # pier distance against an expected range - including a deliberately
+    # lat/lon-swapped adversarial case that the check correctly rejected.
+    # The values below came from that run's actual downloaded log archive,
+    # not from a green checkmark and not from a hand-read webpage. NOTE
+    # FOR THE RECORD (D251): a manually-read coordinate for this same
+    # station was offered separately and was ~0.1 mi off from the value
+    # below; the probe's figure is the one used, per D207.
+    # Computed distance to the Two Rivers pier is ~0.64 mi - the closest
+    # wind station on this entire site. Filling these two values is what
+    # flips Two Rivers' wind locality from "unknown" back to "at_pier":
+    # source_tier_block(expect_distance=True) downgrades a Measured
+    # reading to "unknown" only when distance_mi is None, and distance_mi
+    # comes from distance_from_pier() -> HISTORY_GEO -> these two keys.
+    # Two Rivers' Buoy Watch dot placement (D228) is unblocked by this
+    # same change.
     "NESHOTAH": {"label": "Neshotah Park Met Station (GLOS Seagull, ~0.6 mi from the Two Rivers pier \u2014 wind only, replaces KMTW/Manitowoc Airport as of v21)",
                  "codenames": ["trw"], "source": "glos", "glos_obs_dataset_id": 598,
-                 "lat": None, "lon": None},
+                 "lat": 44.151258, "lon": -87.554115},
     "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)",
              "lat": 43.77483, "lon": -87.84897},
     # 0.55 mi from the Kewaunee pier - a genuinely local wind reading,
