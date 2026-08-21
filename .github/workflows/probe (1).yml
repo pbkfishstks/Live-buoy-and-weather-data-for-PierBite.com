@@ -1,8 +1,8 @@
-# PIERBITE | Workflow repoint v9 | 2026-08-20T20:15:00Z
+# PIERBITE | Workflow repoint v10 | 2026-08-21T14:40:00Z
 # GitHub-side filename MUST stay exactly: .github/workflows/probe (1).yml
 # (do not rename the file on GitHub - only replace its contents)
-# This version points at: neshotah-portwashington-coordinates-probe-2026-08-20-v1.py
-# Previous version (v8) pointed at: glos-probe-v3-2026-08-20-v3.py
+# This version points at: port-washington-node-and-station-probe-2026-08-21-v1.py
+# Previous version (v9) pointed at: neshotah-portwashington-coordinates-probe-2026-08-20-v1.py
 name: Run diagnostic probe
 
 on:
@@ -23,5 +23,5 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run coordinates probe
-        run: python neshotah-portwashington-coordinates-probe-2026-08-20-v1.py
+      - name: Run Port Washington probe
+        run: python port-washington-node-and-station-probe-2026-08-21-v1.py
