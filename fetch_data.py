@@ -4,6 +4,98 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
+PIERBITE fetch_data.py | 2026-08-21 ~15:10 UTC | v24 | Port Washington added
+(seventh pier). There is deliberately no v23 - see the version note
+below.
+
+Updated 2026-08-21 (v24, decisions D256/D258/D262): PORT WASHINGTON IS
+ADDED AS THE SEVENTH PIER. This is a CONFIG-ONLY change. Not one
+function was written, edited, or deleted; not one score, weight,
+threshold or formula was touched; not one existing pier's configuration
+was altered. Five dictionary entries were added and two stale sentences
+of prose were corrected. That is the entire change.
+
+  WHY NO NEW CODE WAS NEEDED. Every mechanism this pier requires was
+  already built and already generic:
+    - fetch_glos_wind_history() was written in v21 for NESHOTAH, and
+      main() already routes ANY STATION_HISTORY entry carrying
+      "source": "glos" to it. Port Washington's wind station is GLOS
+      obs_dataset_id 250, so it needs a dict entry, not a fetcher.
+    - fetch_lmhofs() already loops over LMHOFS_NODES rather than a
+      hardcoded list of piers.
+    - build_piers(), resolve_water(), validate_config() and
+      compute_hot_piers() all loop over PIERS. None of them counts to
+      six.
+  A helper was NOT rewritten here, deliberately (D265): three probe
+  failures in the previous session all traced to one cause - rewriting
+  a helper that already existed. The rule that came out of it is grep
+  the file BEFORE writing a fetch or parse function. That rule was
+  followed to produce this version, and it turned an expected code
+  change into a config change.
+
+  THE COORDINATE TRAP THIS VERSION AVOIDED, WRITTEN DOWN SO IT IS NOT
+  WALKED INTO LATER (D256). Port Washington has TWO published positions
+  and they are five miles apart:
+      43.38527, -87.85965   <- THE PIER. The breakwater / lighthouse.
+                               This is what goes in PIERS.
+      43.316649, -87.828347 <- THE WIND STATION. GLOS platform 250,
+                               five miles offshore. This goes in
+                               STATION_HISTORY and NOWHERE ELSE.
+  Using the station's position as the pier's would have produced a
+  wind_distance_mi near ZERO and a completely plausible-looking, wholly
+  false claim that the site measures wind at the Port Washington pier.
+  It would also have moved the LMHOFS node check five miles and pointed
+  the water temperature at the wrong water. Nothing would have crashed.
+  THE VERIFICATION THAT CATCHES THIS: wind_distance_mi for Port
+  Washington must read approximately 5.0. If it ever reads near zero,
+  the pier coordinates have been overwritten with the station's.
+
+  THE ZONE TRAP, ALSO WRITTEN DOWN (D258). The correct marine zone for
+  Port Washington is LMZ644, "Port Washington to North Point Light WI".
+  It is NOT LMZ643 - and LMZ643 is the trap, because LMZ643 is
+  literally named "Sheboygan to Port Washington WI" and already exists
+  in this file as SHEBOYGAN's zone. LMZ643 is the water NORTH of Port
+  Washington; LMZ644 is the water at and south of it. A zone whose name
+  contains a town is not necessarily that town's zone.
+
+  DISTANCES WERE RECOMPUTED FROM SCRATCH BEFORE THESE VALUES WERE
+  TRUSTED, using this file's own haversine_miles(), not accepted from
+  the prior session's notes: pier to wind station 4.995 mi (published
+  as 5.00), pier to LMHOFS node 17831 0.108 mi (571 ft - comfortably
+  inside the 2.0 mi LMHOFS_MAX_NODE_DRIFT_MI guard, so the node check
+  will pass). A deliberately lat/lon-swapped adversarial case returned
+  9,307 mi and would be rejected, confirming the guard is live and not
+  vacuous.
+
+  WATER FALLBACK CHAIN IS EMPTY, AND THAT IS A DECISION RATHER THAN AN
+  OMISSION (Q-PW-FALLBACK, closed here). Port Washington has no buoy of
+  its own. The only candidate to borrow from is buoy 45210, which sits
+  61.4 MILES away - by a wide margin the longest borrow this site would
+  ever have published; the current record is Sturgeon Bay at 52.5 mi.
+  Wiring it would contradict the central editorial claim of this
+  project, the one build_open_lake_context() exists to make: the deep
+  open-lake buoy is NOT pier water. Leaving the chain empty was checked
+  for consequences rather than assumed safe - build_piers() renormalises
+  its weights across whichever factors actually scored, so on a day
+  LMHOFS is dark, Port Washington still publishes a real score from
+  wind, waves and storm, and simply shows no water temperature. That is
+  honest and it still works. Reversible in one line if a nearer source
+  is ever found.
+
+  WATER TEMPERATURE, WAVES AND ALL FRONTEND WORK ARE NOT IN THIS
+  VERSION. GLOS platform 250 also carries a four-depth thermocline and
+  live wave data, which is a genuinely novel feature and is scheduled
+  as its own change (v25, Kelvin conversion required per D261). It is
+  deliberately excluded here because backend changes ship one at a time
+  in this project (D146) - so that if anything moves, exactly one thing
+  can have moved it.
+
+  VERSION NOTE - THERE IS NO v23 (D262). The number was assigned in an
+  earlier plan and then deliberately skipped rather than reused, because
+  this project has already been bitten once by two chats shipping the
+  same version number (two files numbered v16 on 2026-07-19). A skipped
+  number is free. A duplicated one costs a session.
+
 Updated 2026-08-21 (v22, decision D250): NESHOTAH's published latitude
 and longitude are now filled in - 44.151258, -87.554115 - closing the
 one open item v21 deliberately left behind. This is a TWO-VALUE change
@@ -755,7 +847,11 @@ from math import asin, cos, radians, sin, sqrt, tanh
 STATIONS = {
     # NOAA's station table names this "Rawley Point East, WI (269)". It
     # is NOT a Two Rivers or Manitowoc buoy - it floats 26 miles off Two
-    # Rivers in deep open water, and all six piers currently read it.
+    # Rivers in deep open water, and all six of the ORIGINAL piers read
+    # it somewhere in their fallback chains. v24 note: Port Washington,
+    # the seventh pier, deliberately does NOT - it is 61.4 miles from
+    # this buoy, and its water fallback chain was left empty rather than
+    # publish a borrow that far (Q-PW-FALLBACK).
     # The old label hid that completely.
     "45210": {
         "label": "Rawley Point East buoy (NDBC 45210) \u2014 open lake, deep water",
@@ -840,6 +936,28 @@ STATION_HISTORY = {
     "NESHOTAH": {"label": "Neshotah Park Met Station (GLOS Seagull, ~0.6 mi from the Two Rivers pier \u2014 wind only, replaces KMTW/Manitowoc Airport as of v21)",
                  "codenames": ["trw"], "source": "glos", "glos_obs_dataset_id": 598,
                  "lat": 44.151258, "lon": -87.554115},
+    # v24 (D256): Port Washington's wind. GLOS Seagull platform,
+    # obs_dataset_id 250 - the SECOND station on this site to use the
+    # GLOS source, after NESHOTAH above. It needs no new fetcher:
+    # main() already sends any entry with "source": "glos" to
+    # fetch_glos_wind_history(), which was written in v21. Its
+    # wind_speed (m s-1) and wind_from_direction (degree) variables were
+    # both confirmed present on this platform before it was wired.
+    #
+    # READ THE POSITION BELOW CAREFULLY. These coordinates are the
+    # STATION's, and the station floats FIVE MILES OFFSHORE. They are
+    # NOT Port Washington's pier coordinates, which are 43.38527 /
+    # -87.85965 and live in PIERS. Copying this position into PIERS
+    # would silently claim the site measures wind at the pier itself.
+    # The computed pier-to-station distance is 5.00 mi and it is
+    # published honestly rather than hidden - five miles of open water
+    # is a real caveat, and the site's job is to say so, not to round
+    # it away. This is still a Measured reading and keeps its Measured
+    # tier; source_tier_block() will report its locality as "borrowed"
+    # rather than "at_pier", which is exactly correct.
+    "PORTWASHINGTON": {"label": "Port Washington Met Station (GLOS Seagull, 5.0 mi offshore \u2014 wind only)",
+                       "codenames": ["pww"], "source": "glos", "glos_obs_dataset_id": 250,
+                       "lat": 43.316649, "lon": -87.828347},
     "KSBM": {"label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)",
              "lat": 43.77483, "lon": -87.84897},
     # 0.55 mi from the Kewaunee pier - a genuinely local wind reading,
@@ -871,6 +989,14 @@ NWS_STATION_OBS_URL = "https://api.weather.gov/stations/{station}/observations"
 ZONES = {
     "LMZ543": {"label": "Two Rivers to Sheboygan WI", "codenames": ["trz", "mtz"]},
     "LMZ643": {"label": "Sheboygan to Port Washington WI"},
+    # v24 (D258): Port Washington's OWN zone. Note carefully that the
+    # entry directly above, LMZ643, is named "Sheboygan to Port
+    # Washington" and belongs to SHEBOYGAN - it describes the water
+    # NORTH of Port Washington. LMZ644 is the water at and south of the
+    # town, which is where the breakwater fishing happens. Picking a
+    # zone by looking for the town's name in the zone label is exactly
+    # how the wrong one gets chosen here.
+    "LMZ644": {"label": "Port Washington to North Point Light WI"},
     "LMZ542": {"label": "Sturgeon Bay to Two Rivers WI", "codenames": ["kwz", "algz"]},
 }
 
@@ -1060,6 +1186,13 @@ LMHOFS_NODES = {
     "kewaunee": 28542,
     "algoma": 28904,
     "sturgeon_bay": 31190,
+    # v24: node position 43.38540 / -87.86180, which is 0.108 mi (571
+    # feet) from the breakwater - the second-closest model node to any
+    # pier on this site. Recomputed with haversine_miles() before being
+    # trusted, and comfortably inside LMHOFS_MAX_NODE_DRIFT_MI (2.0), so
+    # lmhofs_read_node()'s own guard will accept it rather than reject
+    # the reading.
+    "port_washington": 17831,
 }
 
 # The model node co-located with buoy 45210 (0.538 mi from the buoy).
@@ -1839,7 +1972,12 @@ def lmhofs_read_node(file_url, node, expect_lat, expect_lon, expect_label):
 
 
 def fetch_lmhofs():
-    """Read nearshore water temperature for all six piers, once.
+    """Read nearshore water temperature for every configured pier, once.
+
+    v24: this used to read "all six piers". It loops LMHOFS_NODES and
+    always did, so the sentence was prose drift rather than a code
+    limit - corrected when the seventh pier was added rather than left
+    to mislead the next reader.
 
     Roughly 20 small requests total. Returns a block that is always
     present in data.json, even when unavailable, so a page can always
@@ -2207,6 +2345,43 @@ PIERS = {
         ],
         "wind_history": [("sbcg", None), ("KSUE", None)],
         "zone": "algz",
+    },
+    # v24 — THE SEVENTH PIER. Added 2026-08-21. Every value below was
+    # source-confirmed before it was written; none was read off a map by
+    # hand (D207/D251), and none was carried over from a prior session's
+    # notes without being recomputed here.
+    "port_washington": {
+        "name": "Port Washington",
+        # THE BREAKWATER / LIGHTHOUSE. This is the single most
+        # error-prone pair of numbers in this file (D256). The wind
+        # station that serves this pier publishes 43.316649 /
+        # -87.828347, which is five miles offshore. If those ever appear
+        # here, wind_distance_mi collapses toward zero and the site
+        # starts silently claiming it measures wind at the pier. It also
+        # drags the LMHOFS node check five miles south onto different
+        # water. Nothing crashes. That is what makes it dangerous.
+        "lat": 43.38527,
+        "lon": -87.85965,
+        # No buoy of its own. Water comes from LMHOFS node 17831, 571
+        # feet away - a better source than any buoy this site has
+        # anyway, since it models water AT the pier.
+        "buoy": None,
+        # DELIBERATELY EMPTY, not unfinished (Q-PW-FALLBACK, closed in
+        # v24). The only borrowable thermometer is buoy 45210 at 61.4
+        # miles, which would be the longest borrow ever published here
+        # and would contradict this project's own open-lake-versus-
+        # nearshore argument. Verified before choosing: build_piers()
+        # renormalises weights over whichever factors scored, so if
+        # LMHOFS is ever dark this pier still publishes a real score
+        # from wind, waves and storm and simply shows no water
+        # temperature. One line to reverse if a nearer source appears.
+        "water_fallbacks": [],
+        # GLOS Seagull platform 250, 5.0 mi offshore. Honest tier:
+        # Measured, locality "borrowed" - not "at_pier".
+        "wind_history": [("pww", None)],
+        # LMZ644, NOT LMZ643. See the note in ZONES - LMZ643 has "Port
+        # Washington" in its name and belongs to Sheboygan.
+        "zone": "LMZ644",
     },
 }
 
