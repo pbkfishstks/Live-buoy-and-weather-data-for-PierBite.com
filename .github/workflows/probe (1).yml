@@ -1,8 +1,11 @@
-# PIERBITE | Workflow repoint v10 | 2026-08-21T14:40:00Z
+# PIERBITE | Workflow repoint v11 | 2026-08-21T15:20:00Z
 # GitHub-side filename MUST stay exactly: .github/workflows/probe (1).yml
 # (do not rename the file on GitHub - only replace its contents)
-# This version points at: port-washington-node-and-station-probe-2026-08-21-v1.py
-# Previous version (v9) pointed at: neshotah-portwashington-coordinates-probe-2026-08-20-v1.py
+# This version points at: port-washington-node-and-station-probe-2026-08-21-v2.py
+# Previous version (v10) pointed at: port-washington-node-and-station-probe-2026-08-21-v1.py
+#   v1 failed its own Stage 3 self-check - its OPeNDAP parser read the
+#   response header as data and shifted every node index by six. Fixed
+#   in v2 by reusing the proven parser from the 2026-07-25 v6 probe.
 name: Run diagnostic probe
 
 on:
@@ -24,4 +27,4 @@ jobs:
           python-version: "3.11"
 
       - name: Run Port Washington probe
-        run: python port-washington-node-and-station-probe-2026-08-21-v1.py
+        run: python port-washington-node-and-station-probe-2026-08-21-v2.py
