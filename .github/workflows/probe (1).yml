@@ -1,11 +1,13 @@
-# PIERBITE | Workflow repoint v11 | 2026-08-21T15:20:00Z
+# PIERBITE | Workflow repoint v12 | 2026-08-21T16:05:00Z
 # GitHub-side filename MUST stay exactly: .github/workflows/probe (1).yml
 # (do not rename the file on GitHub - only replace its contents)
-# This version points at: port-washington-node-and-station-probe-2026-08-21-v2.py
-# Previous version (v10) pointed at: port-washington-node-and-station-probe-2026-08-21-v1.py
-#   v1 failed its own Stage 3 self-check - its OPeNDAP parser read the
-#   response header as data and shifted every node index by six. Fixed
-#   in v2 by reusing the proven parser from the 2026-07-25 v6 probe.
+# This version points at: port-washington-node-and-station-probe-2026-08-21-v3.py
+# Previous version (v11) pointed at: ...-v2.py
+#   v2's Stage 3 SUCCEEDED (node 17831 derived and self-checked). Only
+#   Stage 4 failed - raw square brackets in the OPeNDAP query, which
+#   NOAA's Tomcat rejects with HTTP 400. v3 percent-escapes them using
+#   production's own helper, and splits failures into CRITICAL vs
+#   ADVISORY so an optional stage can never bury a good answer again.
 name: Run diagnostic probe
 
 on:
@@ -27,4 +29,4 @@ jobs:
           python-version: "3.11"
 
       - name: Run Port Washington probe
-        run: python port-washington-node-and-station-probe-2026-08-21-v2.py
+        run: python port-washington-node-and-station-probe-2026-08-21-v3.py
