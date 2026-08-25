@@ -1,9 +1,9 @@
 {
-  "generated_at_utc": "2026-08-25T11:05:11.551219+00:00",
+  "generated_at_utc": "2026-08-25T11:31:15.232970+00:00",
   "stations": {
     "tr1": {
       "available": true,
-      "observed_at_utc": "2026-08-25T10:26:00+00:00",
+      "observed_at_utc": "2026-08-25T10:56:00+00:00",
       "wind_dir": null,
       "wind_mph": null,
       "gust_mph": null,
@@ -20,7 +20,7 @@
     },
     "mt1": {
       "available": true,
-      "observed_at_utc": "2026-08-25T10:26:00+00:00",
+      "observed_at_utc": "2026-08-25T10:56:00+00:00",
       "wind_dir": null,
       "wind_mph": null,
       "gust_mph": null,
@@ -37,9 +37,9 @@
     },
     "SGNW3": {
       "available": true,
-      "observed_at_utc": "2026-08-25T10:30:00+00:00",
+      "observed_at_utc": "2026-08-25T10:50:00+00:00",
       "wind_dir": "W",
-      "wind_mph": 10.3,
+      "wind_mph": 12.8,
       "gust_mph": 13.9,
       "wave_ft": null,
       "water_temp_f": null,
@@ -54,16 +54,16 @@
     },
     "45002": {
       "available": true,
-      "observed_at_utc": "2026-08-25T10:40:00+00:00",
+      "observed_at_utc": "2026-08-25T11:00:00+00:00",
       "wind_dir": "SSE",
-      "wind_mph": 8.9,
+      "wind_mph": 6.7,
       "gust_mph": 8.9,
       "wave_ft": null,
       "water_temp_f": 68.2,
       "water_change_24h_f": 0.0,
       "water_change_72h_f": -1.6,
-      "pressure_hpa": 1018.4,
-      "pressure_tendency_3h_hpa": null,
+      "pressure_hpa": 1018.3,
+      "pressure_tendency_3h_hpa": -0.4,
       "label": "North Michigan buoy (NDBC 45002) \u2014 Washington Island area",
       "lat": 45.344,
       "lon": -86.411,
@@ -814,13 +814,8 @@
       "observed_at_utc": "2026-08-25T06:00:00+00:00",
       "current_wind_dir": "W",
       "current_wind_mph": 1.5,
-      "actual_hours_covered": 68,
+      "actual_hours_covered": 67,
       "hourly": [
-        {
-          "hours_ago": 68,
-          "dir": "S",
-          "mph": 1.0
-        },
         {
           "hours_ago": 67,
           "dir": "SSE",
@@ -1171,13 +1166,8 @@
       "observed_at_utc": "2026-08-25T06:00:00+00:00",
       "current_wind_dir": "NE",
       "current_wind_mph": 4.3,
-      "actual_hours_covered": 68,
+      "actual_hours_covered": 67,
       "hourly": [
-        {
-          "hours_ago": 68,
-          "dir": "NNE",
-          "mph": 10.7
-        },
         {
           "hours_ago": 67,
           "dir": "NNE",
@@ -1900,13 +1890,8 @@
       "observed_at_utc": "2026-08-25T09:00:00+00:00",
       "current_wind_dir": "WNW",
       "current_wind_mph": 6.0,
-      "actual_hours_covered": 71,
+      "actual_hours_covered": 70,
       "hourly": [
-        {
-          "hours_ago": 71,
-          "dir": "NW",
-          "mph": 4.3
-        },
         {
           "hours_ago": 70,
           "dir": "WNW",
@@ -2665,7 +2650,7 @@
     "model": "NOAA Lake Michigan\u2013Huron Operational Forecast System (LMHOFS)",
     "source_tier": "MODELED",
     "run_time_utc": "2026-08-25T06:00:00+00:00",
-    "run_age_hours": 5.1,
+    "run_age_hours": 5.5,
     "stale": false,
     "disclose_age": false,
     "mesh_node_count": 90806,
@@ -2850,7 +2835,7 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-08-25T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 5.5,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": 4.3,
@@ -2862,7 +2847,7 @@
           "source": "LIVE_STALE",
           "source_name": null,
           "observed_at_utc": "2026-08-25T06:00:00+00:00",
-          "age_hours": 5.1
+          "age_hours": 5.5
         },
         "wind_station_label": "Neshotah Park Met Station (GLOS Seagull, ~0.6 mi from the Two Rivers pier \u2014 wind only, replaces KMTW/Manitowoc Airport as of v21)",
         "wind_distance_mi": 0.64,
@@ -2956,7 +2941,7 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-08-25T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 5.5,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": 4.2,
@@ -2968,7 +2953,7 @@
           "source": "LIVE",
           "source_name": null,
           "observed_at_utc": "2026-08-25T09:35:00+00:00",
-          "age_hours": 1.5
+          "age_hours": 1.9
         },
         "wind_station_label": "Manitowoc Airport",
         "wind_distance_mi": 3.5,
@@ -3062,7 +3047,7 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-08-25T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 5.5,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": 8.4,
@@ -3074,7 +3059,7 @@
           "source": "LIVE",
           "source_name": null,
           "observed_at_utc": "2026-08-25T09:35:00+00:00",
-          "age_hours": 1.5
+          "age_hours": 1.9
         },
         "wind_station_label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)",
         "wind_distance_mi": 7.9,
@@ -3094,7 +3079,7 @@
     },
     "kewaunee": {
       "name": "Kewaunee",
-      "score": 61,
+      "score": 60,
       "band": {
         "label": "Fair",
         "tone": "gold"
@@ -3110,7 +3095,7 @@
       "factors": [
         {
           "label": "Wind / Upwelling",
-          "score": 72,
+          "score": 71,
           "weight": 30,
           "source": "LIVE",
           "source_name": null,
@@ -3168,7 +3153,7 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-08-25T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 5.5,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": 4.1,
@@ -3180,7 +3165,7 @@
           "source": "LIVE",
           "source_name": null,
           "observed_at_utc": "2026-08-25T09:00:00+00:00",
-          "age_hours": 2.1
+          "age_hours": 2.5
         },
         "wind_station_label": "Kewaunee MET station (nearest continuously-reporting wind station)",
         "wind_distance_mi": 0.55,
@@ -3218,7 +3203,7 @@
       "factors": [
         {
           "label": "Wind / Upwelling",
-          "score": 72,
+          "score": 71,
           "weight": 30,
           "source": "ESTIMATED",
           "source_name": "Kewaunee",
@@ -3276,7 +3261,7 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-08-25T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 5.5,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": 4.8,
@@ -3288,7 +3273,7 @@
           "source": "ESTIMATED",
           "source_name": "Kewaunee",
           "observed_at_utc": "2026-08-25T09:00:00+00:00",
-          "age_hours": 2.1
+          "age_hours": 2.5
         },
         "wind_station_label": "Kewaunee MET station (nearest continuously-reporting wind station)",
         "wind_distance_mi": 10.37,
@@ -3382,7 +3367,7 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-08-25T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 5.5,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": 4.9,
@@ -3394,7 +3379,7 @@
           "source": "LIVE",
           "source_name": null,
           "observed_at_utc": "2026-08-25T09:35:00+00:00",
-          "age_hours": 1.5
+          "age_hours": 1.9
         },
         "wind_station_label": "Door County Cherryland Airport, Sturgeon Bay (nearest continuously-reporting wind station)",
         "wind_distance_mi": 6.4,
@@ -3488,7 +3473,7 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-08-25T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 5.5,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": 7.5,
@@ -3500,7 +3485,7 @@
           "source": "LIVE_STALE",
           "source_name": null,
           "observed_at_utc": "2026-08-25T06:00:00+00:00",
-          "age_hours": 5.1
+          "age_hours": 5.5
         },
         "wind_station_label": "Port Washington Met Station (GLOS Seagull, 5.0 mi offshore \u2014 wind only)",
         "wind_distance_mi": 5.0,
