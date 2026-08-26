@@ -4,7 +4,7 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
-PIERBITE fetch_data.py | 2026-08-21 ~15:10 UTC | v24 | Port Washington added
+PIERBITE fetch_data.py | 2026-08-26 19:40 UTC | v25 | upwelling curve replaces westerly cosine
 (seventh pier). There is deliberately no v23 - see the version note
 below.
 
@@ -2451,16 +2451,117 @@ def clamp(value, low, high):
     return max(low, min(high, value))
 
 
-def westerly_component(dir_code):
-    """How 'westerly' a wind direction is: W = +1 (good, offshore
-    for Wisconsin's west-shore piers), E = -1 (bad, onshore).
-    Unknown/missing directions count as 0 (neutral), exactly like
-    the page implementation this was ported from."""
-    import math
-    deg = _COMPASS_DEG.get(dir_code)
-    if deg is None:
+# ---------------------------------------------------------------------------
+# PIERBITE WIND-RESPONSE MODEL  (v25, 2026-08-26. Decisions D294-D296, D301.)
+#
+# READ THIS BEFORE CHANGING ANY NUMBER BELOW.
+#
+# WHAT THIS IS: a transparent, physics-informed SCORING MODEL. It is not a
+# published result and it is NOT validated against fishing outcomes. Nobody
+# has checked these numbers against catch data, because PierBite does not
+# collect catch data. Do not describe this table, in code or on the site, as
+# "what the science says."
+#
+# WHAT REPLACED WHAT, AND WHY (the bug this fixes):
+#   v24 and earlier used cos(deg - 270) -- a cosine centred on WEST and
+#   perfectly symmetric about it. That formula returns exactly 0.0 for BOTH
+#   south and north, and identical values for SW and NW. On Wisconsin's
+#   shore, with open water to the EAST, south is a strong upwelling wind and
+#   north is a downwelling wind. A curve with a mirror axis through West is
+#   structurally incapable of telling them apart. The defect was the SYMMETRY,
+#   not a wrong constant (D295).
+#
+# THE TWO MECHANISMS THE TABLE IS DERIVED FROM:
+#   Wind direction is the direction the wind comes FROM. The shoreline runs
+#   roughly north-south with the lake to the EAST, so "offshore" = east (090).
+#
+#   1. EKMAN TRANSPORT. In the northern hemisphere, surface water is carried
+#      about 90 degrees to the RIGHT of the direction the wind BLOWS TOWARD.
+#      Offshore component  =  -cos(theta).   Peaks at S  (wind from S blows
+#      north; transport due east; straight out into the lake).
+#
+#   2. DIRECT WIND-DRIVEN ADVECTION. The wind pushes surface water the way it
+#      is blowing. Offshore component  =  -sin(theta).   Peaks at W.
+#
+#   The model adds the two and clips to +/-1.0:
+#       component(theta) = clamp( -cos(theta) - sin(theta),  -1.0, +1.0 )
+#
+#   The clip is the only free parameter and it is the natural one: the sum
+#   equals exactly 1.0 at S (180) and again at W (270), so clipping at 1.0
+#   makes the flat favourable region land precisely on the S-to-W band with
+#   no tuning. The same is true of the N-to-E band at -1.0.
+#
+# WHY THE TOP IS FLAT AND MUST STAY FLAT (D296):
+#   The literature establishes a favourable BAND. It does not rank SW above S
+#   above W. A peaked curve was proposed during design and WITHDRAWN, because
+#   hand-picked peak and decay values would have been presented under a
+#   scientific banner while resting on nothing. Under uncertainty the flat top
+#   claims LESS, which is why it is the correct default. If the band is ever
+#   tilted, tilt it because a back-test said so, not because it felt right.
+#
+# NOTES ON INDIVIDUAL POINTS, phrased the way they may be repeated publicly:
+#   - Under this model NW is the NEUTRAL POINT, because the modeled Ekman and
+#     advection components exactly offset there. That is a statement about the
+#     model. It is NOT a claim that nature produces zero net effect at NW.
+#   - WNW stays clearly favourable (+0.54), which is consistent with Plattner
+#     naming west-to-northwesterly winds in the windows preceding western-shore
+#     upwelling, and with the CIMSS-documented westerly-driven Sheboygan event.
+#   - SSE is substantially favourable (+0.54) because a wind from SSE still
+#     carries about 92 percent of a due-south wind's offshore Ekman transport.
+#
+# SUPPORTING LITERATURE (establishes the directional RELATIONSHIPS only):
+#   Plattner, S., D. M. Mason, G. A. Leshkevich, D. J. Schwab and E. S. Rutherford
+#   (2006). "Classifying and forecasting coastal upwellings in Lake Michigan
+#   using satellite derived temperature images and buoy data."
+#   Journal of Great Lakes Research 32(1): 63-76.
+#
+# HOW TO VALIDATE THIS LATER (the intended next step, not yet done):
+#   The model's PHYSICAL claim is testable with data PierBite already has --
+#   favourable winds should be followed by falling nearshore water temperature
+#   (see headline.water_change_72h_f). Its BIOLOGICAL claim (colder water means
+#   a better bite) is not testable without catch data. Keep the two separate.
+# ---------------------------------------------------------------------------
+
+# Published into data.json so that any historical score can later be traced
+# back to the model that produced it. Bump this string whenever the table or
+# the derivation changes -- otherwise a back-test cannot tell the versions
+# apart in the archive.
+WIND_MODEL_VERSION = "upwelling_v1"
+
+# The sixteen-point table, derived by the formula documented above and frozen
+# here so the published score never depends on floating-point drift or on a
+# future edit to the derivation. Values rounded to 3 decimals.
+#
+#   Direction            score at a steady wind (50 + 38 * component)
+#   S SSW SW WSW W  ....  88   favourable plateau
+#   WNW / SSE       ....  71
+#   NW / SE         ....  50   model-neutral
+#   NNW / ESE       ....  29
+#   N NNE NE ENE E  ....  12   unfavourable plateau
+_UPWELLING_COMPONENT = {
+    "S":   1.000,   "SSW":  1.000,  "SW":   1.000,  "WSW":  1.000,  "W":  1.000,
+    "WNW": 0.541,   "NW":   0.000,  "NNW": -0.541,
+    "N":  -1.000,   "NNE": -1.000,  "NE":  -1.000,  "ENE": -1.000,  "E": -1.000,
+    "ESE": -0.541,  "SE":   0.000,  "SSE":  0.541,
+}
+
+
+def upwelling_component(dir_code):
+    """How favourable a wind direction is for upwelling at Wisconsin's
+    west-shore piers, on a -1.0 to +1.0 scale.
+
+    Renamed from westerly_component() in v25. The old name encoded the old
+    bug: it framed the question as "how western is this wind" when the real
+    question is "how favourable is this wind for west-shore upwelling."
+
+    Unknown or missing directions return 0.0 (neutral) -- unchanged
+    behaviour, deliberately preserved, so a station reporting a direction
+    this table does not recognise degrades to neutral rather than to
+    'unfavourable'."""
+    comp = _UPWELLING_COMPONENT.get(dir_code)
+    if comp is None:
         return 0.0
-    return math.cos((deg - 270.0) * math.pi / 180.0)
+    return comp
 
 
 def score_wind(history, zone_forecast, borrowed_from, now=None):
@@ -2478,8 +2579,8 @@ def score_wind(history, zone_forecast, borrowed_from, now=None):
     own distinct meaning and staleness there would overload it."""
     if history and history.get("available") and history.get("hourly"):
         hourly = history["hourly"]
-        comps = [westerly_component(h.get("dir")) for h in hourly]
-        recent = [westerly_component(h.get("dir")) for h in hourly if h.get("hours_ago", 99) <= 12]
+        comps = [upwelling_component(h.get("dir")) for h in hourly]
+        recent = [upwelling_component(h.get("dir")) for h in hourly if h.get("hours_ago", 99) <= 12]
         j = sum(comps) / len(comps) if comps else 0.0
         z = sum(recent) / len(recent) if recent else j
         score = round(clamp(50 + 38 * j, 5, 90))
@@ -2495,7 +2596,11 @@ def score_wind(history, zone_forecast, borrowed_from, now=None):
             return {"score": score, "source": "LIVE_STALE", "source_name": None}
         return {"score": score, "source": "LIVE", "source_name": None}
     if zone_forecast and zone_forecast.get("available") and zone_forecast.get("wind_dir"):
-        score = round(clamp(50 + 40 * westerly_component(zone_forecast["wind_dir"]), 5, 95))
+        # v25: unified with the measured path (was 50 + 40*c clamped to 95).
+        # A FORECAST must never be able to outscore a MEASUREMENT: under the
+        # old split scales a forecast west wind scored 90 while an observed
+        # west wind scored 88, so the guess outranked the reading.
+        score = round(clamp(50 + 38 * upwelling_component(zone_forecast["wind_dir"]), 5, 90))
         return {"score": score, "source": "FORECAST", "source_name": None}
     return None
 
@@ -2843,6 +2948,7 @@ def build_piers(output):
                         round((now - datetime.fromisoformat(obs_iso)).total_seconds() / 3600.0, 1)
                         if obs_iso else None
                     ),   # v18 (D173)
+                    "wind_model": WIND_MODEL_VERSION,   # v25 (D301)
                 }
                 wind_hist_key = hist_key
                 break
@@ -2858,11 +2964,13 @@ def build_piers(output):
                     "source_name": None,
                     "observed_at_utc": None,   # v18 (D173) — forecast has no observation timestamp
                     "age_hours": None,   # v18 (D173)
+                    "wind_model": WIND_MODEL_VERSION,   # v25 (D301)
                 }
             else:
                 wind_headline = {"dir": None, "mph": None, "mph_low": None,
                                  "mph_high": None, "source": None, "source_name": None,
-                                 "observed_at_utc": None, "age_hours": None}   # v18 (D173)
+                                 "observed_at_utc": None, "age_hours": None,
+                                 "wind_model": WIND_MODEL_VERSION}   # v18 (D173); v25 (D301)
 
         # --- Water factor.
         water = resolve_water(pier_id, cfg, output)
