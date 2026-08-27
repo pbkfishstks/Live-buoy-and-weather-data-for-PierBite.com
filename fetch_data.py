@@ -4,7 +4,26 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
-PIERBITE fetch_data.py | 2026-08-26 19:40 UTC | v25 | upwelling curve replaces westerly cosine
+PIERBITE fetch_data.py | 2026-08-27 | v26 | dead-calm hours no longer scored as north winds
+
+v26 (2026-08-27, decision D316). ONE BEHAVIOURAL CHANGE. Stations report a
+dead calm as direction 000, which becomes compass "N", which the upwelling
+table scores at -1.000 -- the most unfavourable value there is. score_wind()
+never looked at wind speed, so every calm hour was scored as a strong north
+wind. Measured in the 2026-08-27 archive back-test: 705 of 5,500 archived
+station-hours read 0.0 mph and 100% of them carried direction "N". Effect of
+the fix over the last 720 archived hours: Two Rivers 51 -> 57, Manitowoc
+48 -> 56, Sheboygan 48 -> 55. A second and larger path also closes: twelve
+calm hours drove the "recent onshore shift" test to z = -1.0, so a pier with
+a favourable 72-hour average and a calm last twelve hours took a flat
+22-point penalty for nothing happening. See _hourly_component() for the full
+reasoning, including why calm scores neutral rather than being skipped.
+THE WIND DIRECTION BAND IS UNCHANGED AND WAS NOT REOPENED. The proposed
+W-through-SE revision was tested against 1,374 archived records under a
+criterion frozen and hashed before the run, and was not supported (D315).
+WIND_MODEL_VERSION is bumped to "upwelling_v2" so archived scores from
+before and after this change can be told apart.
+
 (seventh pier). There is deliberately no v23 - see the version note
 below.
 
@@ -2526,7 +2545,13 @@ def clamp(value, low, high):
 # back to the model that produced it. Bump this string whenever the table or
 # the derivation changes -- otherwise a back-test cannot tell the versions
 # apart in the archive.
-WIND_MODEL_VERSION = "upwelling_v1"
+WIND_MODEL_VERSION = "upwelling_v2"
+# v26 (2026-08-27, D316). The sixteen-point direction table below is BYTE-
+# IDENTICAL to upwelling_v1 -- the favourable band did not move and was not
+# reopened (D315). What changed is the AGGREGATION: dead-calm hours are no
+# longer scored as north winds. A back-test that compares archived records
+# across this boundary must treat v1 and v2 scores as non-comparable; they
+# differ by roughly +6 to +8 points on the same weather.
 
 # The sixteen-point table, derived by the formula documented above and frozen
 # here so the published score never depends on floating-point drift or on a
@@ -2564,6 +2589,74 @@ def upwelling_component(dir_code):
     return comp
 
 
+def _hourly_component(hour):
+    """The upwelling component of ONE hourly reading, with dead calm
+    handled correctly.
+
+    ADDED IN v26 (D316). THE BUG THIS FIXES, and it is a real one that
+    was live on the site for as long as the wind history has existed:
+
+      ASOS and GLOS stations report a dead calm as wind direction 000.
+      degrees_to_compass(0) returns "N". _UPWELLING_COMPONENT["N"] is
+      -1.000 -- the most unfavourable value on the whole scale. Until
+      this function existed, score_wind() read the direction string and
+      never looked at the speed, so EVERY DEAD-CALM HOUR WAS SCORED
+      EXACTLY AS IF A STRONG NORTH WIND WERE BLOWING.
+
+    MEASURED, not estimated. The 2026-08-27 archive back-test mined
+    1,374 hourly data.json commits and found 705 of 5,500 station-hours
+    (12.8%) reading 0.0 mph, and 100% of those 705 carried direction
+    "N". Not most of them. All of them.
+
+    MEASURED EFFECT of this fix over the last 720 archived hours:
+      Two Rivers 51 -> 57,  Manitowoc 48 -> 56,  Sheboygan 48 -> 55.
+    Roughly one hour in eight stops being scored as strongly
+    unfavourable when nothing at all was happening.
+
+    A SECOND, LARGER EFFECT was found while writing this fix and is
+    worth stating separately, because it is not a rounding matter. The
+    "recent onshore shift" penalty in score_wind() fires when
+    j > 0.25 and z < -0.1. Twelve calm hours produced z = -1.0, so a
+    pier with a genuinely favourable 72-hour average and a calm most
+    recent twelve hours took a flat 22-point penalty for nothing
+    happening. That path closes here too.
+
+    WHY NEUTRAL (0.0) AND NOT "SKIP THE READING":
+      Skipping would drop calm hours out of the average entirely. A
+      pier with 71 calm hours and one hour of south wind would then
+      average to +1.0 and publish 88 -- "favourable" -- on the strength
+      of a single hour. Returning 0.0 publishes 50 instead. A calm hour
+      is not a missing observation; it is an observation of no forcing,
+      and no forcing is genuinely neutral for upwelling. Zero is also
+      the variant the back-test measured, so the numbers quoted above
+      describe this code and not a near relative of it.
+
+    WHY THE THRESHOLD IS EXACTLY 0.0 AND NOT 2 OR 3 MPH:
+      Because 0.0 is what the stations actually report for calm, and
+      because 705 of 705 confirms it. Any higher cut-off would be a
+      hand-chosen number wearing a physical justification -- the exact
+      failure mode that got two earlier curves withdrawn from this
+      project (D302 / R108). If a light-wind threshold is ever wanted,
+      it needs its own evidence and its own version.
+
+    mph of None falls through to the direction unchanged. A station
+    that reports a direction but no speed is not calm; it is
+    under-reported, and silently neutralising it would be a different
+    change than the one this version makes.
+
+    NOT ADDRESSED HERE, ON PURPOSE (one change per version, D146):
+      score_wind() still ignores wind SPEED entirely above zero -- a
+      2 mph south wind and a 25 mph south wind score identically. That
+      is a real limitation of the model, but weighting by speed is a
+      model redesign and would need the same scrutiny the direction
+      band got, not a quiet edit riding along with a defect fix.
+    """
+    mph = hour.get("mph")
+    if mph is not None and mph <= 0.0:
+        return 0.0
+    return upwelling_component(hour.get("dir"))
+
+
 def score_wind(history, zone_forecast, borrowed_from, now=None):
     """0-100 wind factor. Prefers real hourly history (LIVE, or
     LIVE_STALE past STALE_AFTER_HOURS, or ESTIMATED when the history
@@ -2579,8 +2672,10 @@ def score_wind(history, zone_forecast, borrowed_from, now=None):
     own distinct meaning and staleness there would overload it."""
     if history and history.get("available") and history.get("hourly"):
         hourly = history["hourly"]
-        comps = [upwelling_component(h.get("dir")) for h in hourly]
-        recent = [upwelling_component(h.get("dir")) for h in hourly if h.get("hours_ago", 99) <= 12]
+        # v26 (D316): _hourly_component() instead of upwelling_component()
+        # so a 0.0 mph reading scores neutral rather than as a north wind.
+        comps = [_hourly_component(h) for h in hourly]
+        recent = [_hourly_component(h) for h in hourly if h.get("hours_ago", 99) <= 12]
         j = sum(comps) / len(comps) if comps else 0.0
         z = sum(recent) / len(recent) if recent else j
         score = round(clamp(50 + 38 * j, 5, 90))
