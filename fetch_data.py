@@ -4,7 +4,36 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
-PIERBITE fetch_data.py | 2026-08-27 | v26 | dead-calm hours no longer scored as north winds
+PIERBITE fetch_data.py | 2026-08-28 14:10 UTC | v27 | backend-published wind explanation text
+
+v27 (2026-08-28, decision D308). ONE BEHAVIOURAL CHANGE, AND IT CHANGES NO
+SCORE. Every pier's wind number in v27 is bit-for-bit what v26 produced on
+the same data. What is added is a plain-English sentence explaining that
+number, rendered in this file and published inside the "Wind / Upwelling"
+factor as factors[0]["explain"]["text"], together with the facts it was
+derived from. The frontend displays the sentence and never composes one.
+
+  WHY. The wording used to live in hand-written Carrd copy with no
+  mechanical link to the scoring. When v25 corrected the direction band the
+  number changed and the paragraph beside it did not, so the site scored a
+  south wind 88 while telling visitors a south wind pushes warm water in
+  (R113). A wording patch would have fixed that instance; moving the wording
+  into this file removes the second place it could ever drift from.
+
+  THE CASE THAT DROVE IT. On the 2026-08-27 18:21Z run Kewaunee published a
+  wind score of 47 after three days of favourable WNW and S wind, purely
+  because the wind swung onshore inside the last twelve hours and the -22
+  penalty fired. Nothing on the page said so. Sturgeon Bay was the same.
+  That state now has its own sentence.
+
+  WIND_MODEL_VERSION IS NOT BUMPED, on purpose. It stays "upwelling_v2".
+  Bumping it would tell a future back-test that scores either side of this
+  release cannot be compared, and that would be false.
+
+  NOT INCLUDED, ON PURPOSE (D146, one change per version): the 72-hour
+  ribbon westerly-hour-count migration (Q-RIBBON-COUNT-IN-V27) is NOT in
+  this release. v27 is the first version that puts words on the page; if the
+  wording lands badly it must be revertible on its own.
 
 v26 (2026-08-27, decision D316). ONE BEHAVIOURAL CHANGE. Stations report a
 dead calm as direction 000, which becomes compass "N", which the upwelling
@@ -2657,6 +2686,184 @@ def _hourly_component(hour):
     return upwelling_component(hour.get("dir"))
 
 
+# ---------------------------------------------------------------------------
+# WIND EXPLANATION TEXT -- ADDED IN v27 (2026-08-28, D308).
+#
+# WHY THIS LIVES IN THE BACKEND AND NOT IN CARRD.
+# Until v27 the wind score was published as a bare number and the sentence
+# describing it lived in hand-written Carrd copy. Those two things had no
+# mechanical connection, so when the direction band was corrected in v25 the
+# number changed and the sentence did not -- the site scored a south wind 88
+# while the paragraph beside it said a south wind pushes warm water IN. That
+# is risk R113 and it stayed live for weeks. Rendering the sentence in the
+# same function that computes the number makes that class of drift
+# structurally impossible: there is no second place for the wording to live.
+#
+# WHAT IT DOES NOT DO. It does not change any score. Not one number moves in
+# v27. WIND_MODEL_VERSION is deliberately NOT bumped, because bumping it
+# would tell a future back-test that scores either side of this release are
+# non-comparable, and that would be false -- they are identical.
+#
+# HONESTY RULES BAKED IN HERE (these are constraints, not style):
+#   1. Every physical claim is conditional and attributed to the model
+#      ("Under PierBite's wind model, ... can ..."). The model has NOT been
+#      validated against fishing outcomes and the text never implies it has.
+#   2. Calm is only ever mentioned when calm was actually MEASURED. The two
+#      GLOS anemometers (Two Rivers, Port Washington) never emit an exact
+#      0.0 mph -- their observed floors are 0.7 and 3.1 mph -- so a calm
+#      count of zero there means "cannot detect calm", not "no calm
+#      occurred". The threshold test below is silent in that case by
+#      construction. NO LIGHT-WIND THRESHOLD IS INVENTED HERE
+#      (Q-LIGHT-WIND-FLOOR stays open on purpose).
+#   3. A forecast is always named as a forecast, and always described as
+#      covering the zone rather than the pier.
+# ---------------------------------------------------------------------------
+
+_DIR_WORDS = {
+    "N": "north", "NNE": "north-northeast", "NE": "northeast",
+    "ENE": "east-northeast", "E": "east", "ESE": "east-southeast",
+    "SE": "southeast", "SSE": "south-southeast", "S": "south",
+    "SSW": "south-southwest", "SW": "southwest", "WSW": "west-southwest",
+    "W": "west", "WNW": "west-northwest", "NW": "northwest",
+    "NNW": "north-northwest",
+}
+
+# A calm share at or above this fraction gets a sentence of its own. Set at
+# 0.15 rather than a rounder 0.25 because the live 2026-08-27 run showed
+# Manitowoc at 12 calm hours in 73 (16.4%) -- a sixth of the window standing
+# still is worth telling an angler about, and the pre-v26 bug lived in
+# exactly this range. This governs WORDING ONLY; it touches no score.
+_CALM_MENTION_SHARE = 0.15
+
+# A window this calm gets its own sentence rather than being described as a
+# shifting wind. 0.60 is a wording boundary only and moves no score; it is
+# set well above _CALM_MENTION_SHARE so the two never fight over the same
+# window.
+_CALM_MOSTLY_SHARE = 0.60
+
+
+def _dir_words(dir_code):
+    """Compass code to plain English. Unknown codes come back as-is rather
+    than as an invented direction."""
+    return _DIR_WORDS.get(dir_code, dir_code)
+
+
+def _window_phrase(n_hours):
+    """'3 days' reads better than '73 hours' and is what an angler thinks
+    in; below two days, stay in hours so nothing is rounded away."""
+    if n_hours >= 48:
+        return "%d days" % round(n_hours / 24.0)
+    return "%d hours" % n_hours
+
+
+def _top_directions(hourly, limit=2):
+    """The most common NON-CALM directions in the window. Calm hours are
+    excluded because their direction string is 000/'N' and is meaningless --
+    including them would reintroduce the v26 bug in the wording layer."""
+    counts = {}
+    for h in hourly:
+        mph = h.get("mph")
+        if mph is not None and mph <= 0.0:
+            continue
+        d = h.get("dir")
+        if d in _DIR_WORDS:
+            counts[d] = counts.get(d, 0) + 1
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    return [d for d, _ in ranked[:limit]]
+
+
+def _join_dirs(dirs):
+    """'south and west', or just 'south' if only one direction shows."""
+    words = [_dir_words(d) for d in dirs]
+    if not words:
+        return None
+    if len(words) == 1:
+        return words[0]
+    return "%s and %s" % (words[0], words[1])
+
+
+def _measured_wind_explanation(hourly, j, z, penalty_applied):
+    """Build the explanation block for a MEASURED window.
+
+    Returns (text, facts). The facts are published alongside the sentence so
+    the frontend -- or a future back-test -- can see exactly what the wording
+    was derived from without re-deriving it.
+    """
+    n = len(hourly)
+    window = _window_phrase(n)
+    tops = _top_directions(hourly)
+    dirs_phrase = _join_dirs(tops)
+
+    calm_hours = sum(1 for h in hourly
+                     if h.get("mph") is not None and h.get("mph") <= 0.0)
+    calm_share = (calm_hours / float(n)) if n else 0.0
+
+    if penalty_applied:
+        state = "recent_onshore_shift"
+        text = (
+            "Wind favoured cold water for most of the past %s, but it has "
+            "swung back onshore in the last 12 hours. Under PierBite's wind "
+            "model, a recent shift like that can push cold water away from "
+            "the pier before it arrives, so the score is held down." % window
+        )
+    elif j > 0.25:
+        state = "favourable"
+        where = (" from the %s" % dirs_phrase) if dirs_phrase else ""
+        text = (
+            "Wind has come mostly%s over the past %s. Under PierBite's wind "
+            "model, wind from that quarter can pull colder water in toward "
+            "the shore." % (where, window)
+        )
+    elif j < -0.25:
+        state = "unfavourable"
+        where = (" from the %s" % dirs_phrase) if dirs_phrase else ""
+        text = (
+            "Wind has come mostly%s over the past %s. Under PierBite's wind "
+            "model, wind blowing in off the lake tends to hold warmer "
+            "surface water against the shore." % (where, window)
+        )
+    elif calm_hours and calm_share >= _CALM_MOSTLY_SHARE:
+        # Without this branch a dead-flat window fell into "mixed" and read
+        # "wind has shifted around with no steady direction ... about 100% of
+        # those hours were dead calm", which contradicts itself. Calm is not
+        # a shifting wind; it is no wind.
+        state = "mostly_calm"
+        text = (
+            "The wind has been calm or nearly calm for most of the past %s. "
+            "Under PierBite's wind model that leaves the score in the "
+            "middle: nothing is moving water toward the pier or away from "
+            "it." % window
+        )
+    else:
+        state = "mixed"
+        where = (", mostly %s" % dirs_phrase) if dirs_phrase else ""
+        text = (
+            "Wind has shifted around over the past %s with no steady "
+            "direction%s. Nothing here is pushing water strongly either "
+            "way." % (window, where)
+        )
+
+    # Calm sentence. Only ever appended when calm was genuinely MEASURED --
+    # see honesty rule 2 above. A station that cannot report an exact 0.0
+    # produces calm_hours == 0 and says nothing at all, which is correct.
+    if (state != "mostly_calm" and calm_hours
+            and calm_share >= _CALM_MENTION_SHARE):
+        text += (" About %d%% of those hours were dead calm."
+                 % round(calm_share * 100))
+
+    facts = {
+        "state": state,
+        "hours": n,
+        "calm_hours": calm_hours,
+        "calm_share_pct": round(calm_share * 100, 1) if n else None,
+        "avg_component": round(j, 3),
+        "recent_component": round(z, 3),
+        "onshore_shift": bool(penalty_applied),
+        "top_dirs": tops,
+    }
+    return text, facts
+
+
 def score_wind(history, zone_forecast, borrowed_from, now=None):
     """0-100 wind factor. Prefers real hourly history (LIVE, or
     LIVE_STALE past STALE_AFTER_HOURS, or ESTIMATED when the history
@@ -2679,24 +2886,71 @@ def score_wind(history, zone_forecast, borrowed_from, now=None):
         j = sum(comps) / len(comps) if comps else 0.0
         z = sum(recent) / len(recent) if recent else j
         score = round(clamp(50 + 38 * j, 5, 90))
-        if j > 0.25 and z < -0.1:
+        # v27 (D308): the penalty test and its arithmetic are UNCHANGED. The
+        # only addition is remembering whether it fired, so the published
+        # sentence can say so. A pier can otherwise sit at 47 after three
+        # good days with nothing on the page to explain why.
+        penalty_applied = bool(j > 0.25 and z < -0.1)
+        if penalty_applied:
             score = round(clamp(score - 22, 5, 95))
+        explain_text, explain_facts = _measured_wind_explanation(
+            hourly, j, z, penalty_applied)   # v27 (D308)
         if borrowed_from:
-            return {"score": score, "source": "ESTIMATED", "source_name": borrowed_from}
+            explain_facts["source"] = "ESTIMATED"
+            return {"score": score, "source": "ESTIMATED",
+                    "source_name": borrowed_from,
+                    "explain": dict(explain_facts, text=(
+                        explain_text + " This pier has no wind sensor of its "
+                        "own, so the reading comes from %s." % borrowed_from))}
         age_hours = None
         obs_iso = history.get("observed_at_utc")
         if obs_iso and now is not None:
             age_hours = (now - datetime.fromisoformat(obs_iso)).total_seconds() / 3600.0
         if age_hours is not None and age_hours > STALE_AFTER_HOURS:
-            return {"score": score, "source": "LIVE_STALE", "source_name": None}
-        return {"score": score, "source": "LIVE", "source_name": None}
+            explain_facts["source"] = "LIVE_STALE"
+            return {"score": score, "source": "LIVE_STALE", "source_name": None,
+                    "explain": dict(explain_facts, text=(
+                        explain_text + " The last reading from this sensor is "
+                        "%.1f hours old." % age_hours))}
+        explain_facts["source"] = "LIVE"
+        return {"score": score, "source": "LIVE", "source_name": None,
+                "explain": dict(explain_facts, text=explain_text)}
     if zone_forecast and zone_forecast.get("available") and zone_forecast.get("wind_dir"):
         # v25: unified with the measured path (was 50 + 40*c clamped to 95).
         # A FORECAST must never be able to outscore a MEASUREMENT: under the
         # old split scales a forecast west wind scored 90 while an observed
         # west wind scored 88, so the guess outranked the reading.
         score = round(clamp(50 + 38 * upwelling_component(zone_forecast["wind_dir"]), 5, 90))
-        return {"score": score, "source": "FORECAST", "source_name": None}
+        # v27 (D308). THIS IS THE SENTENCE THAT MATTERS MOST. When a station
+        # goes quiet the pier drops to the zone forecast and the score can
+        # move 15-20 points in one hour for a reason that has nothing to do
+        # with the weather. Before v27 a visitor saw only the new number and
+        # would reasonably read a sensor outage as terrible fishing.
+        fdir = zone_forecast.get("wind_dir")
+        lo = zone_forecast.get("wind_mph_low")
+        hi = zone_forecast.get("wind_mph_high")
+        if lo is not None and hi is not None:
+            speed = " at %g to %g mph" % (lo, hi)
+        elif hi is not None:
+            speed = " at around %g mph" % hi
+        else:
+            speed = ""
+        text = (
+            "No wind readings are coming from this pier's sensor right now, "
+            "so this uses the marine forecast for the area: wind from the "
+            "%s%s. A forecast covers the whole zone and is not a reading at "
+            "the pier." % (_dir_words(fdir), speed)
+        )
+        return {"score": score, "source": "FORECAST", "source_name": None,
+                "explain": {"state": "forecast", "source": "FORECAST",
+                            "hours": None, "calm_hours": None,
+                            "calm_share_pct": None,
+                            "avg_component": round(
+                                upwelling_component(fdir), 3),
+                            "recent_component": None,
+                            "onshore_shift": False,
+                            "top_dirs": [fdir] if fdir else [],
+                            "text": text}}
     return None
 
 
@@ -3155,10 +3409,20 @@ def build_piers(output):
             factors.append({
                 "label": "Wind / Upwelling", "score": wind_factor["score"], "weight": 30,
                 "source": wind_factor["source"], "source_name": wind_factor.get("source_name"),
+                "explain": wind_factor.get("explain"),   # v27 (D308)
             })
         else:
             factors.append({"label": "Wind / Upwelling", "score": None, "weight": 30,
-                            "source": "MISSING", "source_name": None})
+                            "source": "MISSING", "source_name": None,
+                            "explain": {   # v27 (D308)
+                                "state": "none", "source": "MISSING",
+                                "hours": None, "calm_hours": None,
+                                "calm_share_pct": None, "avg_component": None,
+                                "recent_component": None, "onshore_shift": False,
+                                "top_dirs": [],
+                                "text": ("No wind data is available for this "
+                                         "pier right now."),
+                            }})
         if water_score is not None:
             factors.append({
                 "label": "Water Temperature", "score": water_score, "weight": 30,
