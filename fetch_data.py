@@ -4,7 +4,42 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
-PIERBITE fetch_data.py | 2026-08-28 14:10 UTC | v27 | backend-published wind explanation text
+PIERBITE fetch_data.py | 2026-08-30 16:40 UTC | v28 | LMHOFS label prefix removed at source (D365)
+
+v28 (2026-08-30, decision D365). ONE STRING CHANGE, NO SCORE MOVES, NO KEY
+ADDED OR REMOVED. water_station_label's MODELED branch used to read "NOAA
+LMHOFS nearshore model - grid node %s". Every one of the six pre-v28 pier
+frontends (waterSub()/waterDescription()) ALSO prefixes "NOAA LMHOFS" before
+printing this label, so all seven piers rendered the network name twice
+(Q-LMHOFS-LABEL-DOUBLE, first logged as Q-LMHOFS-LABEL-DUPE, D347). Port
+Washington's frontend already worked around this with a strip-then-reprefix
+helper (lmhofsLabel()/lmhofsNode(), D358) built specifically so it would
+survive this exact change without dropping the attribution - it now becomes
+a no-op there, harmlessly.
+
+THE FIX: the leading "NOAA LMHOFS " is removed from the label at its one
+construction site. water_station_label's MODELED value is now "nearshore
+model - grid node %s" only. water_temp_source, water_distance_mi, and the
+LMHOFS node/model machinery are completely unchanged - this is a display
+string only.
+
+ONE KNOWN SIDE EFFECT, DELIBERATELY NOT FIXED HERE (own item, own session,
+D146): Compare Piers prints water_temp_station_label RAW with no frontend
+prefix of its own (confirmed directly against its live source, v40/D-series
+notes). After this release Compare Piers' water-temp line no longer names
+"NOAA LMHOFS" anywhere, because the one copy it was relying on is gone.
+Every other consumer either already prefixes it (six piers) or already
+strips-then-reprefixes defensively (Port Washington), so this is the only
+place text got WORSE rather than better. Flagged in the handoff as a
+required frontend follow-up, not smuggled into this backend release.
+
+Q-BUOY-OPENLAKE-DOUBLE WAS DELIBERATELY NOT TOUCHED THIS RELEASE. Buoy
+45210's label already reads "...open lake, deep water" and needs no backend
+change; the Manitowoc-only duplication is caused by that pier's OWN
+frontend file still unconditionally appending "- open lake" instead of
+using the conditional check Two Rivers Pier A v9 already ships (D355). A
+backend string edit cannot fix a frontend template gap - see this session's
+handoff for the recommended frontend-only fix.
 
 v27 (2026-08-28, decision D308). ONE BEHAVIOURAL CHANGE, AND IT CHANGES NO
 SCORE. Every pier's wind number in v27 is bit-for-bit what v26 produced on
@@ -3361,8 +3396,20 @@ def build_piers(output):
                 # can never go stale inside a sentence (C19, D87).
                 point = (output.get("model_water_temp", {})
                          .get("points", {}).get(water.get("source_key"), {}))
+                # v28 (D365): the leading "NOAA LMHOFS" was REMOVED from this
+                # label on purpose. Every consumer of water_temp_station_label
+                # that already prepends its own "NOAA LMHOFS" (waterSub()/
+                # waterDescription() on six piers, Port Washington's
+                # lmhofsLabel()/lmhofsNode() strip-helpers) now gets a clean
+                # single occurrence instead of a doubled one. THE ONE KNOWN
+                # EXCEPTION: Compare Piers prints this label raw with no
+                # prefix of its own, so as of this release Compare Piers'
+                # water-temp line no longer names the network by itself -
+                # a frontend-side follow-up (add the same "NOAA LMHOFS "
+                # prefix Compare Piers is missing) is required there. Not
+                # fixed in this release - backend ships alone, D146.
                 water_station_label = (
-                    "NOAA LMHOFS nearshore model \u2014 grid node %s"
+                    "nearshore model \u2014 grid node %s"
                     % point.get("node")
                 )
                 water_distance_mi = point.get("distance_mi")
