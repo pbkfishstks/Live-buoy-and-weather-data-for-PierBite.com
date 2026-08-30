@@ -1,33 +1,48 @@
-# PIERBITE | Workflow repoint v13 | 2026-08-21T17:10:00Z
+# PIERBITE | Workflow repoint v14 | 2026-08-30
 # GitHub-side filename MUST stay exactly: .github/workflows/probe (1).yml
 # (do not rename the file on GitHub - only replace its contents)
-# This version points at: port-washington-node-and-station-probe-2026-08-21-v4.py
-# Previous version (v12) pointed at: ...-v3.py
-#   v3 passed all critical checks and CONFIRMED node 17831 on a second
-#   run. Its Stage 6 printed an EMPTY variable list and then wrongly
-#   concluded station 250 has no water temperature - a false negative
-#   caused by a line-oriented .das parser, not by anything at GLOS.
-#   v4 copies the repository's proven quote-aware parser verbatim and
-#   treats an empty variable list as a fault, never as a finding.
-name: Run diagnostic probe
+#
+# This version points at: Scripts_st-joseph-node-and-station-probe-2026-08-30-v1.py
+# Previous version (v13) pointed at: port-washington-node-and-station-probe-2026-08-21-v4.py
+#
+#   v13 passed all critical checks on 2026-08-30 and produced the Port
+#   Washington answer: LMHOFS node 17831 at 0.108 mi, zone LMZ644,
+#   GLOS station 250 reporting with both wind field names present.
+#   That work is finished; this workflow is now repointed.
+#
+# WHAT THIS RUN IS FOR
+# St. Joseph, Michigan - the first EAST-shore pier ever probed for this
+# project. Beyond deriving a mesh node, it deliberately re-tests two
+# things the memory document currently records as fact but has never
+# measured:
+#   - that NDBC station SJOM4 at the pier is dead
+#   - that KBEH airport is about 3.5 miles away
+# Either may turn out to be wrong. That is the point of running it.
+#
+# EXPECT ADVISORY NOTES. Unlike the Port Washington run, this probe is
+# designed to finish with open questions - specifically the marine zone,
+# which is genuinely ambiguous at St. Joseph and which the probe prints
+# both candidates for rather than choosing. Advisory notes do not fail
+# the run.
+#
+# ONE RUN IS NOT ENOUGH. The node number this produces must be
+# reproduced by a SECOND run on a different day before it goes anywhere
+# near fetch_data.py. Port Washington was held to that bar; so is this.
 
+name: Run diagnostic probe
 on:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Run Port Washington probe
-        run: python port-washington-node-and-station-probe-2026-08-21-v4.py
+      - name: Run St. Joseph probe
+        run: python "Scripts_st-joseph-node-and-station-probe-2026-08-30-v1.py"
