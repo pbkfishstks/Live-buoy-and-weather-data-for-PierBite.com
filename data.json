@@ -1,16 +1,16 @@
 {
-  "generated_at_utc": "2026-09-11T11:05:09.483625+00:00",
+  "generated_at_utc": "2026-09-11T12:05:45.471232+00:00",
   "stations": {
     "tr1": {
       "available": true,
-      "observed_at_utc": "2026-09-11T10:26:00+00:00",
+      "observed_at_utc": "2026-09-11T11:26:00+00:00",
       "wind_dir": null,
       "wind_mph": null,
       "gust_mph": null,
       "wave_ft": 1.97,
-      "water_temp_f": 71.4,
-      "water_change_24h_f": -0.4,
-      "water_change_72h_f": -0.6,
+      "water_temp_f": 71.6,
+      "water_change_24h_f": 0.0,
+      "water_change_72h_f": -0.2,
       "pressure_hpa": null,
       "pressure_tendency_3h_hpa": null,
       "label": "Rawley Point East buoy (NDBC 45210) \u2014 open lake, deep water",
@@ -20,14 +20,14 @@
     },
     "mt1": {
       "available": true,
-      "observed_at_utc": "2026-09-11T10:26:00+00:00",
+      "observed_at_utc": "2026-09-11T11:26:00+00:00",
       "wind_dir": null,
       "wind_mph": null,
       "gust_mph": null,
       "wave_ft": 1.97,
-      "water_temp_f": 71.4,
-      "water_change_24h_f": -0.4,
-      "water_change_72h_f": -0.6,
+      "water_temp_f": 71.6,
+      "water_change_24h_f": 0.0,
+      "water_change_72h_f": -0.2,
       "pressure_hpa": null,
       "pressure_tendency_3h_hpa": null,
       "label": "Rawley Point East buoy (NDBC 45210) \u2014 open lake, deep water",
@@ -37,15 +37,15 @@
     },
     "SGNW3": {
       "available": true,
-      "observed_at_utc": "2026-09-11T10:40:00+00:00",
+      "observed_at_utc": "2026-09-11T11:40:00+00:00",
       "wind_dir": "SW",
-      "wind_mph": 6.9,
-      "gust_mph": 9.2,
+      "wind_mph": 9.2,
+      "gust_mph": 11.4,
       "wave_ft": null,
       "water_temp_f": null,
       "water_change_24h_f": null,
       "water_change_72h_f": null,
-      "pressure_hpa": 1016.7,
+      "pressure_hpa": 1017.1,
       "pressure_tendency_3h_hpa": null,
       "label": "Sheboygan, WI shore station (NDBC SGNW3)",
       "lat": 43.749,
@@ -54,15 +54,15 @@
     },
     "45002": {
       "available": true,
-      "observed_at_utc": "2026-09-11T10:30:00+00:00",
+      "observed_at_utc": "2026-09-11T11:40:00+00:00",
       "wind_dir": "SW",
       "wind_mph": 15.7,
       "gust_mph": 17.9,
       "wave_ft": null,
-      "water_temp_f": 69.8,
+      "water_temp_f": 69.6,
       "water_change_24h_f": 0.2,
-      "water_change_72h_f": -0.7,
-      "pressure_hpa": 1015.7,
+      "water_change_72h_f": -0.9,
+      "pressure_hpa": 1016.0,
       "pressure_tendency_3h_hpa": null,
       "label": "North Michigan buoy (NDBC 45002) \u2014 Washington Island area",
       "lat": 45.344,
@@ -75,23 +75,14 @@
       "label": "Two Rivers to Sheboygan WI",
       "forecast": {
         "available": true,
-        "period_name": "EARLY THIS MORNING",
-        "wind_dir": "SW",
-        "wind_mph_low": 5.8,
-        "wind_mph_high": 11.5,
-        "wave_ft_low": 0.0,
-        "wave_ft_high": 2.0,
-        "detailed_text": "SW wind 5 to 10 kts. Waves 2 ft or less. Clear.",
+        "period_name": "TODAY",
+        "wind_dir": "S",
+        "wind_mph_low": 11.5,
+        "wind_mph_high": 28.8,
+        "wave_ft_low": 1.0,
+        "wave_ft_high": 3.0,
+        "detailed_text": "S wind 10 to 15 kts increasing to 15 to 25 kts in the late morning and afternoon. Waves 1 to 3 ft building to 3 to 5 ft in the afternoon. Sunny.",
         "upcoming": [
-          {
-            "period_name": "TODAY",
-            "wind_dir": "S",
-            "wind_mph_low": 11.5,
-            "wind_mph_high": 28.8,
-            "wave_ft_low": 1.0,
-            "wave_ft_high": 3.0,
-            "detailed_text": "S wind 10 to 15 kts increasing to 15 to 25 kts in the late morning and afternoon. Waves 1 to 3 ft building to 3 to 5 ft in the afternoon. Sunny."
-          },
           {
             "period_name": "TONIGHT",
             "wind_dir": "S",
@@ -99,7 +90,7 @@
             "wind_mph_high": 28.8,
             "wave_ft_low": 3.0,
             "wave_ft_high": 5.0,
-            "detailed_text": "S wind 15 to 25 kts decreasing to 10 to 15 kts in the late evening and overnight. Waves 3 to 5 ft. Partly cloudy."
+            "detailed_text": "S wind 15 to 25 kts decreasing to 10 to 15 kts in the late evening and overnight. Waves 3 to 5 ft subsiding to 2 to 4 ft after midnight. Partly cloudy."
           },
           {
             "period_name": "SATURDAY",
@@ -109,6 +100,15 @@
             "wave_ft_low": 2.0,
             "wave_ft_high": 4.0,
             "detailed_text": "SW wind 10 to 20 kts veering W 10 to 15 kts early in the afternoon. Waves 2 to 4 ft. Partly sunny."
+          },
+          {
+            "period_name": "SATURDAY NIGHT",
+            "wind_dir": "NW",
+            "wind_mph_low": 11.5,
+            "wind_mph_high": 17.3,
+            "wave_ft_low": 1.0,
+            "wave_ft_high": 3.0,
+            "detailed_text": "NW wind 10 to 15 kts. Waves 1 to 3 ft. Partly cloudy."
           }
         ]
       },
@@ -138,23 +138,14 @@
       "label": "Two Rivers to Sheboygan WI",
       "forecast": {
         "available": true,
-        "period_name": "EARLY THIS MORNING",
-        "wind_dir": "SW",
-        "wind_mph_low": 5.8,
-        "wind_mph_high": 11.5,
-        "wave_ft_low": 0.0,
-        "wave_ft_high": 2.0,
-        "detailed_text": "SW wind 5 to 10 kts. Waves 2 ft or less. Clear.",
+        "period_name": "TODAY",
+        "wind_dir": "S",
+        "wind_mph_low": 11.5,
+        "wind_mph_high": 28.8,
+        "wave_ft_low": 1.0,
+        "wave_ft_high": 3.0,
+        "detailed_text": "S wind 10 to 15 kts increasing to 15 to 25 kts in the late morning and afternoon. Waves 1 to 3 ft building to 3 to 5 ft in the afternoon. Sunny.",
         "upcoming": [
-          {
-            "period_name": "TODAY",
-            "wind_dir": "S",
-            "wind_mph_low": 11.5,
-            "wind_mph_high": 28.8,
-            "wave_ft_low": 1.0,
-            "wave_ft_high": 3.0,
-            "detailed_text": "S wind 10 to 15 kts increasing to 15 to 25 kts in the late morning and afternoon. Waves 1 to 3 ft building to 3 to 5 ft in the afternoon. Sunny."
-          },
           {
             "period_name": "TONIGHT",
             "wind_dir": "S",
@@ -162,7 +153,7 @@
             "wind_mph_high": 28.8,
             "wave_ft_low": 3.0,
             "wave_ft_high": 5.0,
-            "detailed_text": "S wind 15 to 25 kts decreasing to 10 to 15 kts in the late evening and overnight. Waves 3 to 5 ft. Partly cloudy."
+            "detailed_text": "S wind 15 to 25 kts decreasing to 10 to 15 kts in the late evening and overnight. Waves 3 to 5 ft subsiding to 2 to 4 ft after midnight. Partly cloudy."
           },
           {
             "period_name": "SATURDAY",
@@ -172,6 +163,15 @@
             "wave_ft_low": 2.0,
             "wave_ft_high": 4.0,
             "detailed_text": "SW wind 10 to 20 kts veering W 10 to 15 kts early in the afternoon. Waves 2 to 4 ft. Partly sunny."
+          },
+          {
+            "period_name": "SATURDAY NIGHT",
+            "wind_dir": "NW",
+            "wind_mph_low": 11.5,
+            "wind_mph_high": 17.3,
+            "wave_ft_low": 1.0,
+            "wave_ft_high": 3.0,
+            "detailed_text": "NW wind 10 to 15 kts. Waves 1 to 3 ft. Partly cloudy."
           }
         ]
       },
@@ -299,23 +299,14 @@
       "label": "Sturgeon Bay to Two Rivers WI",
       "forecast": {
         "available": true,
-        "period_name": "EARLY THIS MORNING",
-        "wind_dir": "SW",
-        "wind_mph_low": 5.8,
-        "wind_mph_high": 11.5,
-        "wave_ft_low": 0.0,
-        "wave_ft_high": 2.0,
-        "detailed_text": "SW wind 5 to 10 kts. Waves 2 ft or less. Clear.",
+        "period_name": "TODAY",
+        "wind_dir": "S",
+        "wind_mph_low": 11.5,
+        "wind_mph_high": 28.8,
+        "wave_ft_low": 1.0,
+        "wave_ft_high": 3.0,
+        "detailed_text": "S wind 10 to 15 kts increasing to 15 to 25 kts in the late morning and afternoon. Waves 1 to 3 ft building to 3 to 5 ft in the afternoon. Sunny.",
         "upcoming": [
-          {
-            "period_name": "TODAY",
-            "wind_dir": "S",
-            "wind_mph_low": 11.5,
-            "wind_mph_high": 28.8,
-            "wave_ft_low": 1.0,
-            "wave_ft_high": 3.0,
-            "detailed_text": "S wind 10 to 15 kts increasing to 15 to 25 kts in the late morning and afternoon. Waves 1 to 3 ft building to 3 to 5 ft in the afternoon. Sunny."
-          },
           {
             "period_name": "TONIGHT",
             "wind_dir": "S",
@@ -323,7 +314,7 @@
             "wind_mph_high": 28.8,
             "wave_ft_low": 3.0,
             "wave_ft_high": 5.0,
-            "detailed_text": "S wind 15 to 25 kts decreasing to 10 to 15 kts in the late evening and overnight. Waves 3 to 5 ft. Partly cloudy."
+            "detailed_text": "S wind 15 to 25 kts decreasing to 10 to 15 kts in the late evening and overnight. Waves 3 to 5 ft subsiding to 2 to 4 ft after midnight. Partly cloudy."
           },
           {
             "period_name": "SATURDAY",
@@ -333,6 +324,15 @@
             "wave_ft_low": 2.0,
             "wave_ft_high": 4.0,
             "detailed_text": "SW wind 10 to 20 kts veering W 10 to 15 kts early in the afternoon. Waves 2 to 4 ft. Partly sunny."
+          },
+          {
+            "period_name": "SATURDAY NIGHT",
+            "wind_dir": "NW",
+            "wind_mph_low": 11.5,
+            "wind_mph_high": 17.3,
+            "wave_ft_low": 1.0,
+            "wave_ft_high": 3.0,
+            "detailed_text": "NW wind 10 to 15 kts. Waves 1 to 3 ft. Partly cloudy."
           }
         ]
       },
@@ -362,23 +362,14 @@
       "label": "Sturgeon Bay to Two Rivers WI",
       "forecast": {
         "available": true,
-        "period_name": "EARLY THIS MORNING",
-        "wind_dir": "SW",
-        "wind_mph_low": 5.8,
-        "wind_mph_high": 11.5,
-        "wave_ft_low": 0.0,
-        "wave_ft_high": 2.0,
-        "detailed_text": "SW wind 5 to 10 kts. Waves 2 ft or less. Clear.",
+        "period_name": "TODAY",
+        "wind_dir": "S",
+        "wind_mph_low": 11.5,
+        "wind_mph_high": 28.8,
+        "wave_ft_low": 1.0,
+        "wave_ft_high": 3.0,
+        "detailed_text": "S wind 10 to 15 kts increasing to 15 to 25 kts in the late morning and afternoon. Waves 1 to 3 ft building to 3 to 5 ft in the afternoon. Sunny.",
         "upcoming": [
-          {
-            "period_name": "TODAY",
-            "wind_dir": "S",
-            "wind_mph_low": 11.5,
-            "wind_mph_high": 28.8,
-            "wave_ft_low": 1.0,
-            "wave_ft_high": 3.0,
-            "detailed_text": "S wind 10 to 15 kts increasing to 15 to 25 kts in the late morning and afternoon. Waves 1 to 3 ft building to 3 to 5 ft in the afternoon. Sunny."
-          },
           {
             "period_name": "TONIGHT",
             "wind_dir": "S",
@@ -386,7 +377,7 @@
             "wind_mph_high": 28.8,
             "wave_ft_low": 3.0,
             "wave_ft_high": 5.0,
-            "detailed_text": "S wind 15 to 25 kts decreasing to 10 to 15 kts in the late evening and overnight. Waves 3 to 5 ft. Partly cloudy."
+            "detailed_text": "S wind 15 to 25 kts decreasing to 10 to 15 kts in the late evening and overnight. Waves 3 to 5 ft subsiding to 2 to 4 ft after midnight. Partly cloudy."
           },
           {
             "period_name": "SATURDAY",
@@ -396,6 +387,15 @@
             "wave_ft_low": 2.0,
             "wave_ft_high": 4.0,
             "detailed_text": "SW wind 10 to 20 kts veering W 10 to 15 kts early in the afternoon. Waves 2 to 4 ft. Partly sunny."
+          },
+          {
+            "period_name": "SATURDAY NIGHT",
+            "wind_dir": "NW",
+            "wind_mph_low": 11.5,
+            "wind_mph_high": 17.3,
+            "wave_ft_low": 1.0,
+            "wave_ft_high": 3.0,
+            "detailed_text": "NW wind 10 to 15 kts. Waves 1 to 3 ft. Partly cloudy."
           }
         ]
       },
@@ -425,30 +425,30 @@
   "station_history": {
     "mtw": {
       "available": true,
-      "observed_at_utc": "2026-09-11T10:50:00+00:00",
-      "current_wind_dir": "N",
-      "current_wind_mph": 0.0,
+      "observed_at_utc": "2026-09-11T11:50:00+00:00",
+      "current_wind_dir": "SW",
+      "current_wind_mph": 3.4,
       "actual_hours_covered": 73,
       "hourly": [
         {
           "hours_ago": 72,
           "dir": "S",
-          "mph": 6.9
-        },
-        {
-          "hours_ago": 71,
-          "dir": "S",
           "mph": 10.4
         },
         {
-          "hours_ago": 70,
+          "hours_ago": 71,
           "dir": "SW",
           "mph": 4.6
         },
         {
-          "hours_ago": 69,
+          "hours_ago": 70,
           "dir": "SSW",
           "mph": 5.7
+        },
+        {
+          "hours_ago": 69,
+          "dir": "SW",
+          "mph": 6.9
         },
         {
           "hours_ago": 68,
@@ -458,42 +458,42 @@
         {
           "hours_ago": 67,
           "dir": "SW",
-          "mph": 6.9
-        },
-        {
-          "hours_ago": 66,
-          "dir": "SW",
           "mph": 4.6
         },
         {
-          "hours_ago": 65,
+          "hours_ago": 66,
           "dir": "SE",
           "mph": 6.9
         },
         {
-          "hours_ago": 64,
+          "hours_ago": 65,
           "dir": "S",
           "mph": 13.8
         },
         {
-          "hours_ago": 63,
+          "hours_ago": 64,
           "dir": "SSE",
           "mph": 11.5
         },
         {
-          "hours_ago": 62,
+          "hours_ago": 63,
           "dir": "S",
           "mph": 12.7
         },
         {
-          "hours_ago": 61,
+          "hours_ago": 62,
           "dir": "S",
           "mph": 15.0
         },
         {
-          "hours_ago": 60,
+          "hours_ago": 61,
           "dir": "S",
           "mph": 8.1
+        },
+        {
+          "hours_ago": 60,
+          "dir": "S",
+          "mph": 12.7
         },
         {
           "hours_ago": 59,
@@ -503,97 +503,97 @@
         {
           "hours_ago": 58,
           "dir": "S",
-          "mph": 12.7
+          "mph": 10.4
         },
         {
           "hours_ago": 57,
           "dir": "S",
-          "mph": 10.4
+          "mph": 4.6
         },
         {
           "hours_ago": 56,
-          "dir": "S",
-          "mph": 4.6
+          "dir": "SSW",
+          "mph": 9.2
         },
         {
           "hours_ago": 55,
           "dir": "SSW",
-          "mph": 9.2
-        },
-        {
-          "hours_ago": 54,
-          "dir": "SSW",
           "mph": 6.9
         },
         {
-          "hours_ago": 53,
+          "hours_ago": 54,
           "dir": "S",
           "mph": 5.7
         },
         {
-          "hours_ago": 52,
+          "hours_ago": 53,
           "dir": "WSW",
           "mph": 9.2
         },
         {
-          "hours_ago": 51,
+          "hours_ago": 52,
           "dir": "SW",
+          "mph": 6.9
+        },
+        {
+          "hours_ago": 51,
+          "dir": "WSW",
           "mph": 6.9
         },
         {
           "hours_ago": 50,
           "dir": "WSW",
-          "mph": 6.9
-        },
-        {
-          "hours_ago": 49,
-          "dir": "WSW",
           "mph": 11.5
         },
         {
-          "hours_ago": 48,
+          "hours_ago": 49,
           "dir": "W",
           "mph": 10.4
         },
         {
-          "hours_ago": 47,
+          "hours_ago": 48,
           "dir": "W",
           "mph": 9.2
         },
         {
-          "hours_ago": 46,
+          "hours_ago": 47,
           "dir": "WSW",
           "mph": 9.2
         },
         {
-          "hours_ago": 45,
+          "hours_ago": 46,
           "dir": "W",
           "mph": 8.1
         },
         {
-          "hours_ago": 44,
+          "hours_ago": 45,
           "dir": "W",
           "mph": 11.5
         },
         {
-          "hours_ago": 43,
+          "hours_ago": 44,
           "dir": "W",
           "mph": 12.7
         },
         {
-          "hours_ago": 42,
+          "hours_ago": 43,
           "dir": "WNW",
           "mph": 12.7
         },
         {
-          "hours_ago": 41,
+          "hours_ago": 42,
           "dir": "W",
           "mph": 13.8
         },
         {
-          "hours_ago": 40,
+          "hours_ago": 41,
           "dir": "W",
           "mph": 15.0
+        },
+        {
+          "hours_ago": 40,
+          "dir": "W",
+          "mph": 17.3
         },
         {
           "hours_ago": 39,
@@ -603,7 +603,7 @@
         {
           "hours_ago": 38,
           "dir": "W",
-          "mph": 17.3
+          "mph": 13.8
         },
         {
           "hours_ago": 37,
@@ -613,22 +613,22 @@
         {
           "hours_ago": 36,
           "dir": "W",
-          "mph": 13.8
+          "mph": 6.9
         },
         {
           "hours_ago": 35,
           "dir": "W",
-          "mph": 6.9
+          "mph": 5.7
         },
         {
           "hours_ago": 34,
-          "dir": "W",
-          "mph": 5.7
+          "dir": "WNW",
+          "mph": 4.6
         },
         {
           "hours_ago": 33,
           "dir": "WNW",
-          "mph": 4.6
+          "mph": 6.9
         },
         {
           "hours_ago": 32,
@@ -638,77 +638,77 @@
         {
           "hours_ago": 31,
           "dir": "WNW",
-          "mph": 6.9
-        },
-        {
-          "hours_ago": 30,
-          "dir": "WNW",
           "mph": 4.6
         },
         {
-          "hours_ago": 29,
+          "hours_ago": 30,
           "dir": "W",
           "mph": 3.4
+        },
+        {
+          "hours_ago": 29,
+          "dir": "WNW",
+          "mph": 5.7
         },
         {
           "hours_ago": 28,
           "dir": "WNW",
-          "mph": 5.7
+          "mph": 3.4
         },
         {
           "hours_ago": 27,
           "dir": "WNW",
-          "mph": 3.4
+          "mph": 5.7
         },
         {
           "hours_ago": 26,
           "dir": "WNW",
-          "mph": 5.7
-        },
-        {
-          "hours_ago": 25,
-          "dir": "WNW",
           "mph": 4.6
         },
         {
-          "hours_ago": 24,
+          "hours_ago": 25,
           "dir": "N",
           "mph": 0.0
         },
         {
-          "hours_ago": 23,
+          "hours_ago": 24,
           "dir": "W",
           "mph": 4.6
         },
         {
-          "hours_ago": 22,
+          "hours_ago": 23,
           "dir": "W",
           "mph": 6.9
         },
         {
-          "hours_ago": 21,
+          "hours_ago": 22,
           "dir": "W",
           "mph": 8.1
         },
         {
-          "hours_ago": 20,
+          "hours_ago": 21,
           "dir": "WNW",
           "mph": 6.9
         },
         {
-          "hours_ago": 19,
+          "hours_ago": 20,
           "dir": "NW",
           "mph": 6.9
         },
         {
-          "hours_ago": 18,
+          "hours_ago": 19,
           "dir": "W",
           "mph": 11.5
         },
         {
-          "hours_ago": 17,
+          "hours_ago": 18,
           "dir": "NNW",
           "mph": 6.9
+        },
+        {
+          "hours_ago": 17,
+          "dir": "NW",
+          "mph": 9.2
         },
         {
           "hours_ago": 16,
@@ -717,38 +717,38 @@
         },
         {
           "hours_ago": 15,
-          "dir": "NW",
+          "dir": "SE",
           "mph": 9.2
         },
         {
           "hours_ago": 14,
-          "dir": "SE",
+          "dir": "ESE",
           "mph": 9.2
         },
         {
           "hours_ago": 13,
           "dir": "ESE",
-          "mph": 9.2
-        },
-        {
-          "hours_ago": 12,
-          "dir": "ESE",
           "mph": 5.7
         },
         {
-          "hours_ago": 11,
+          "hours_ago": 12,
           "dir": "SSE",
           "mph": 4.6
         },
         {
-          "hours_ago": 10,
+          "hours_ago": 11,
           "dir": "S",
           "mph": 3.4
         },
         {
-          "hours_ago": 9,
+          "hours_ago": 10,
           "dir": "SSW",
           "mph": 3.4
+        },
+        {
+          "hours_ago": 9,
+          "dir": "N",
+          "mph": 0.0
         },
         {
           "hours_ago": 8,
@@ -757,43 +757,43 @@
         },
         {
           "hours_ago": 7,
-          "dir": "N",
-          "mph": 0.0
+          "dir": "SSW",
+          "mph": 6.9
         },
         {
           "hours_ago": 6,
-          "dir": "SSW",
+          "dir": "SW",
           "mph": 6.9
         },
         {
           "hours_ago": 5,
           "dir": "SW",
-          "mph": 6.9
+          "mph": 5.7
         },
         {
           "hours_ago": 4,
           "dir": "SW",
-          "mph": 5.7
+          "mph": 3.4
         },
         {
           "hours_ago": 3,
           "dir": "SW",
-          "mph": 3.4
+          "mph": 4.6
         },
         {
           "hours_ago": 2,
           "dir": "SW",
-          "mph": 4.6
-        },
-        {
-          "hours_ago": 1,
-          "dir": "SW",
           "mph": 3.4
         },
         {
-          "hours_ago": 0,
+          "hours_ago": 1,
           "dir": "N",
           "mph": 0.0
+        },
+        {
+          "hours_ago": 0,
+          "dir": "SW",
+          "mph": 3.4
         }
       ],
       "label": "Manitowoc Airport",
@@ -805,13 +805,8 @@
       "observed_at_utc": "2026-09-09T23:40:00+00:00",
       "current_wind_dir": "SSW",
       "current_wind_mph": 2.5,
-      "actual_hours_covered": 37,
+      "actual_hours_covered": 36,
       "hourly": [
-        {
-          "hours_ago": 37,
-          "dir": "S",
-          "mph": 12.6
-        },
         {
           "hours_ago": 36,
           "dir": "SSE",
@@ -1007,13 +1002,8 @@
       "observed_at_utc": "2026-09-09T23:50:00+00:00",
       "current_wind_dir": "S",
       "current_wind_mph": 7.2,
-      "actual_hours_covered": 37,
+      "actual_hours_covered": 36,
       "hourly": [
-        {
-          "hours_ago": 37,
-          "dir": "NNW",
-          "mph": 10.7
-        },
         {
           "hours_ago": 36,
           "dir": "NE",
@@ -1206,10 +1196,10 @@
     },
     "KSBM": {
       "available": true,
-      "observed_at_utc": "2026-09-11T10:50:00+00:00",
-      "current_wind_dir": "SW",
-      "current_wind_mph": 4.6,
-      "actual_hours_covered": 73,
+      "observed_at_utc": "2026-09-11T11:50:00+00:00",
+      "current_wind_dir": "SSW",
+      "current_wind_mph": 3.4,
+      "actual_hours_covered": 72,
       "hourly": [
         {
           "hours_ago": 72,
@@ -1223,88 +1213,88 @@
         },
         {
           "hours_ago": 70,
-          "dir": "N",
-          "mph": 0.0
-        },
-        {
-          "hours_ago": 69,
           "dir": "W",
           "mph": 3.4
         },
         {
-          "hours_ago": 68,
+          "hours_ago": 69,
           "dir": "SSW",
           "mph": 8.1
         },
         {
-          "hours_ago": 67,
+          "hours_ago": 68,
           "dir": "S",
           "mph": 6.9
         },
         {
-          "hours_ago": 66,
+          "hours_ago": 67,
           "dir": "N",
           "mph": 0.0
         },
         {
-          "hours_ago": 65,
+          "hours_ago": 66,
           "dir": "SE",
           "mph": 9.2
         },
         {
-          "hours_ago": 64,
+          "hours_ago": 65,
           "dir": "S",
           "mph": 6.9
         },
         {
-          "hours_ago": 63,
+          "hours_ago": 64,
           "dir": "SSE",
           "mph": 10.4
         },
         {
-          "hours_ago": 62,
+          "hours_ago": 63,
           "dir": "S",
           "mph": 12.7
+        },
+        {
+          "hours_ago": 62,
+          "dir": "S",
+          "mph": 9.2
         },
         {
           "hours_ago": 61,
           "dir": "S",
-          "mph": 9.2
+          "mph": 11.5
         },
         {
           "hours_ago": 60,
           "dir": "S",
-          "mph": 11.5
+          "mph": 9.2
         },
         {
           "hours_ago": 59,
           "dir": "S",
-          "mph": 9.2
+          "mph": 8.1
         },
         {
           "hours_ago": 58,
           "dir": "S",
-          "mph": 8.1
+          "mph": 10.4
         },
         {
           "hours_ago": 57,
           "dir": "S",
-          "mph": 10.4
-        },
-        {
-          "hours_ago": 56,
-          "dir": "S",
           "mph": 6.9
         },
         {
-          "hours_ago": 55,
+          "hours_ago": 56,
           "dir": "SW",
           "mph": 8.1
         },
         {
-          "hours_ago": 54,
+          "hours_ago": 55,
           "dir": "SSW",
           "mph": 12.7
+        },
+        {
+          "hours_ago": 54,
+          "dir": "SSW",
+          "mph": 10.4
         },
         {
           "hours_ago": 53,
@@ -1313,243 +1303,243 @@
         },
         {
           "hours_ago": 52,
-          "dir": "SSW",
-          "mph": 10.4
+          "dir": "SW",
+          "mph": 6.9
         },
         {
           "hours_ago": 51,
           "dir": "SW",
-          "mph": 6.9
+          "mph": 5.7
         },
         {
           "hours_ago": 50,
-          "dir": "SW",
-          "mph": 5.7
+          "dir": "WSW",
+          "mph": 10.4
         },
         {
           "hours_ago": 49,
           "dir": "WSW",
-          "mph": 10.4
+          "mph": 9.2
         },
         {
           "hours_ago": 48,
           "dir": "WSW",
-          "mph": 9.2
+          "mph": 12.7
         },
         {
           "hours_ago": 47,
-          "dir": "WSW",
-          "mph": 12.7
+          "dir": "W",
+          "mph": 9.2
         },
         {
           "hours_ago": 46,
           "dir": "W",
-          "mph": 9.2
+          "mph": 13.8
         },
         {
           "hours_ago": 45,
           "dir": "W",
-          "mph": 13.8
+          "mph": 10.4
         },
         {
           "hours_ago": 44,
           "dir": "W",
-          "mph": 10.4
+          "mph": 11.5
         },
         {
           "hours_ago": 43,
           "dir": "W",
-          "mph": 11.5
+          "mph": 13.8
         },
         {
           "hours_ago": 42,
           "dir": "W",
-          "mph": 13.8
+          "mph": 11.5
         },
         {
           "hours_ago": 41,
           "dir": "W",
-          "mph": 11.5
+          "mph": 13.8
         },
         {
           "hours_ago": 40,
           "dir": "W",
-          "mph": 13.8
+          "mph": 10.4
         },
         {
           "hours_ago": 39,
           "dir": "W",
-          "mph": 10.4
+          "mph": 18.4
         },
         {
           "hours_ago": 38,
           "dir": "W",
-          "mph": 18.4
+          "mph": 13.8
         },
         {
           "hours_ago": 37,
           "dir": "W",
-          "mph": 13.8
-        },
-        {
-          "hours_ago": 36,
-          "dir": "W",
           "mph": 12.7
         },
         {
-          "hours_ago": 35,
+          "hours_ago": 36,
           "dir": "WSW",
           "mph": 9.2
         },
         {
-          "hours_ago": 34,
+          "hours_ago": 35,
           "dir": "W",
           "mph": 6.9
         },
         {
-          "hours_ago": 33,
+          "hours_ago": 34,
           "dir": "W",
           "mph": 5.7
         },
         {
-          "hours_ago": 32,
+          "hours_ago": 33,
           "dir": "W",
           "mph": 8.1
         },
         {
-          "hours_ago": 31,
+          "hours_ago": 32,
           "dir": "NW",
           "mph": 6.9
         },
         {
-          "hours_ago": 30,
+          "hours_ago": 31,
           "dir": "W",
           "mph": 6.9
         },
         {
-          "hours_ago": 29,
+          "hours_ago": 30,
           "dir": "WSW",
           "mph": 3.4
         },
         {
-          "hours_ago": 28,
+          "hours_ago": 29,
           "dir": "N",
           "mph": 0.0
+        },
+        {
+          "hours_ago": 28,
+          "dir": "W",
+          "mph": 3.4
         },
         {
           "hours_ago": 27,
           "dir": "W",
-          "mph": 3.4
-        },
-        {
-          "hours_ago": 26,
-          "dir": "W",
           "mph": 4.6
         },
         {
-          "hours_ago": 25,
+          "hours_ago": 26,
           "dir": "N",
           "mph": 0.0
         },
         {
-          "hours_ago": 24,
+          "hours_ago": 25,
           "dir": "W",
           "mph": 3.4
         },
         {
-          "hours_ago": 23,
+          "hours_ago": 24,
           "dir": "W",
+          "mph": 5.7
+        },
+        {
+          "hours_ago": 23,
+          "dir": "WNW",
           "mph": 5.7
         },
         {
           "hours_ago": 22,
           "dir": "WNW",
-          "mph": 5.7
-        },
-        {
-          "hours_ago": 21,
-          "dir": "WNW",
           "mph": 9.2
         },
         {
-          "hours_ago": 20,
+          "hours_ago": 21,
           "dir": "NW",
           "mph": 5.7
         },
         {
-          "hours_ago": 19,
+          "hours_ago": 20,
           "dir": "NNW",
           "mph": 4.6
         },
         {
-          "hours_ago": 18,
+          "hours_ago": 19,
           "dir": "W",
           "mph": 10.4
         },
         {
-          "hours_ago": 17,
+          "hours_ago": 18,
           "dir": "NNW",
           "mph": 6.9
         },
         {
-          "hours_ago": 16,
+          "hours_ago": 17,
           "dir": "NW",
           "mph": 8.1
         },
         {
-          "hours_ago": 15,
+          "hours_ago": 16,
           "dir": "NW",
           "mph": 6.9
         },
         {
-          "hours_ago": 14,
+          "hours_ago": 15,
           "dir": "WNW",
           "mph": 6.9
         },
         {
-          "hours_ago": 13,
+          "hours_ago": 14,
           "dir": "N",
           "mph": 0.0
         },
         {
-          "hours_ago": 12,
+          "hours_ago": 13,
           "dir": "ESE",
           "mph": 5.7
         },
         {
-          "hours_ago": 11,
+          "hours_ago": 12,
           "dir": "SE",
           "mph": 4.6
         },
         {
-          "hours_ago": 10,
+          "hours_ago": 11,
           "dir": "SE",
           "mph": 3.4
         },
         {
-          "hours_ago": 9,
+          "hours_ago": 10,
           "dir": "N",
           "mph": 0.0
         },
         {
-          "hours_ago": 8,
+          "hours_ago": 9,
           "dir": "WSW",
           "mph": 3.4
         },
         {
-          "hours_ago": 7,
+          "hours_ago": 8,
           "dir": "N",
           "mph": 0.0
         },
         {
-          "hours_ago": 6,
+          "hours_ago": 7,
           "dir": "SSW",
           "mph": 3.4
         },
         {
-          "hours_ago": 5,
+          "hours_ago": 6,
           "dir": "WSW",
           "mph": 3.4
+        },
+        {
+          "hours_ago": 5,
+          "dir": "N",
+          "mph": 0.0
         },
         {
           "hours_ago": 4,
@@ -1568,13 +1558,13 @@
         },
         {
           "hours_ago": 1,
-          "dir": "N",
-          "mph": 0.0
+          "dir": "SW",
+          "mph": 4.6
         },
         {
           "hours_ago": 0,
-          "dir": "SW",
-          "mph": 4.6
+          "dir": "SSW",
+          "mph": 3.4
         }
       ],
       "label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)",
@@ -1583,375 +1573,375 @@
     },
     "kww": {
       "available": true,
-      "observed_at_utc": "2026-09-11T10:18:00+00:00",
+      "observed_at_utc": "2026-09-11T11:18:00+00:00",
       "current_wind_dir": "SW",
-      "current_wind_mph": 7.8,
+      "current_wind_mph": 6.3,
       "actual_hours_covered": 72,
       "hourly": [
         {
           "hours_ago": 72,
           "dir": "SSW",
-          "mph": 7.2
+          "mph": 8.7
         },
         {
           "hours_ago": 71,
           "dir": "SSW",
-          "mph": 8.7
+          "mph": 7.8
         },
         {
           "hours_ago": 70,
           "dir": "SSW",
-          "mph": 7.8
-        },
-        {
-          "hours_ago": 69,
-          "dir": "SSW",
           "mph": 6.9
         },
         {
-          "hours_ago": 68,
+          "hours_ago": 69,
           "dir": "SW",
           "mph": 7.6
         },
         {
-          "hours_ago": 67,
+          "hours_ago": 68,
           "dir": "SSW",
           "mph": 8.9
         },
         {
-          "hours_ago": 66,
+          "hours_ago": 67,
           "dir": "SW",
           "mph": 4.5
         },
         {
-          "hours_ago": 65,
+          "hours_ago": 66,
           "dir": "SSE",
           "mph": 5.4
         },
         {
-          "hours_ago": 64,
+          "hours_ago": 65,
           "dir": "SSE",
           "mph": 18.6
         },
         {
-          "hours_ago": 63,
+          "hours_ago": 64,
           "dir": "SSE",
           "mph": 19.2
         },
         {
-          "hours_ago": 62,
+          "hours_ago": 63,
           "dir": "S",
           "mph": 16.6
         },
         {
-          "hours_ago": 61,
+          "hours_ago": 62,
           "dir": "S",
           "mph": 11.9
         },
         {
-          "hours_ago": 60,
+          "hours_ago": 61,
           "dir": "SSW",
           "mph": 11.2
         },
         {
-          "hours_ago": 59,
+          "hours_ago": 60,
           "dir": "S",
           "mph": 12.3
         },
         {
-          "hours_ago": 58,
+          "hours_ago": 59,
           "dir": "SSW",
           "mph": 10.5
         },
         {
-          "hours_ago": 57,
+          "hours_ago": 58,
           "dir": "SSW",
           "mph": 9.2
+        },
+        {
+          "hours_ago": 57,
+          "dir": "S",
+          "mph": 10.1
         },
         {
           "hours_ago": 56,
           "dir": "S",
-          "mph": 10.1
-        },
-        {
-          "hours_ago": 55,
-          "dir": "S",
           "mph": 11.9
         },
         {
-          "hours_ago": 54,
+          "hours_ago": 55,
           "dir": "SSW",
           "mph": 8.7
         },
         {
-          "hours_ago": 53,
+          "hours_ago": 54,
           "dir": "SSW",
           "mph": 9.6
         },
         {
-          "hours_ago": 52,
+          "hours_ago": 53,
           "dir": "S",
           "mph": 5.8
         },
         {
-          "hours_ago": 51,
+          "hours_ago": 52,
           "dir": "S",
           "mph": 7.8
         },
         {
-          "hours_ago": 50,
+          "hours_ago": 51,
           "dir": "SW",
           "mph": 6.3
         },
         {
-          "hours_ago": 49,
+          "hours_ago": 50,
           "dir": "WSW",
           "mph": 5.8
+        },
+        {
+          "hours_ago": 49,
+          "dir": "W",
+          "mph": 6.0
         },
         {
           "hours_ago": 48,
           "dir": "W",
-          "mph": 6.0
-        },
-        {
-          "hours_ago": 47,
-          "dir": "W",
           "mph": 6.5
         },
         {
-          "hours_ago": 46,
+          "hours_ago": 47,
           "dir": "WSW",
           "mph": 6.0
         },
         {
-          "hours_ago": 45,
+          "hours_ago": 46,
           "dir": "W",
           "mph": 7.4
         },
         {
-          "hours_ago": 44,
+          "hours_ago": 45,
           "dir": "W",
           "mph": 8.3
         },
         {
-          "hours_ago": 43,
+          "hours_ago": 44,
           "dir": "WNW",
           "mph": 9.2
         },
         {
-          "hours_ago": 42,
+          "hours_ago": 43,
           "dir": "W",
           "mph": 6.5
         },
         {
-          "hours_ago": 41,
+          "hours_ago": 42,
           "dir": "WNW",
           "mph": 13.0
         },
         {
-          "hours_ago": 40,
+          "hours_ago": 41,
           "dir": "W",
           "mph": 11.4
         },
         {
-          "hours_ago": 39,
+          "hours_ago": 40,
           "dir": "WSW",
           "mph": 10.1
         },
         {
-          "hours_ago": 38,
+          "hours_ago": 39,
           "dir": "W",
           "mph": 15.0
         },
         {
-          "hours_ago": 37,
+          "hours_ago": 38,
           "dir": "W",
           "mph": 13.0
         },
         {
-          "hours_ago": 36,
+          "hours_ago": 37,
           "dir": "W",
           "mph": 10.3
         },
         {
-          "hours_ago": 35,
+          "hours_ago": 36,
           "dir": "W",
           "mph": 15.4
         },
         {
-          "hours_ago": 34,
+          "hours_ago": 35,
           "dir": "W",
           "mph": 5.8
         },
         {
-          "hours_ago": 33,
+          "hours_ago": 34,
           "dir": "NW",
           "mph": 2.7
         },
         {
-          "hours_ago": 32,
+          "hours_ago": 33,
           "dir": "WNW",
           "mph": 3.8
         },
         {
-          "hours_ago": 31,
+          "hours_ago": 32,
           "dir": "WNW",
           "mph": 4.7
         },
         {
-          "hours_ago": 30,
+          "hours_ago": 31,
           "dir": "NW",
           "mph": 3.6
         },
         {
-          "hours_ago": 29,
+          "hours_ago": 30,
           "dir": "W",
           "mph": 2.2
         },
         {
-          "hours_ago": 28,
+          "hours_ago": 29,
           "dir": "NW",
+          "mph": 4.0
+        },
+        {
+          "hours_ago": 28,
+          "dir": "WNW",
           "mph": 4.0
         },
         {
           "hours_ago": 27,
           "dir": "WNW",
-          "mph": 4.0
+          "mph": 4.5
         },
         {
           "hours_ago": 26,
           "dir": "WNW",
-          "mph": 4.5
+          "mph": 4.0
         },
         {
           "hours_ago": 25,
           "dir": "WNW",
-          "mph": 4.0
+          "mph": 4.7
         },
         {
           "hours_ago": 24,
           "dir": "WNW",
-          "mph": 4.7
+          "mph": 5.8
         },
         {
           "hours_ago": 23,
           "dir": "WNW",
-          "mph": 5.8
+          "mph": 7.6
         },
         {
           "hours_ago": 22,
           "dir": "WNW",
-          "mph": 7.6
+          "mph": 7.8
         },
         {
           "hours_ago": 21,
           "dir": "WNW",
-          "mph": 7.8
-        },
-        {
-          "hours_ago": 20,
-          "dir": "WNW",
           "mph": 6.3
         },
         {
-          "hours_ago": 19,
+          "hours_ago": 20,
           "dir": "NW",
           "mph": 5.6
         },
         {
-          "hours_ago": 18,
+          "hours_ago": 19,
           "dir": "WNW",
           "mph": 6.5
         },
         {
-          "hours_ago": 17,
+          "hours_ago": 18,
           "dir": "NNW",
           "mph": 4.5
         },
         {
-          "hours_ago": 16,
+          "hours_ago": 17,
           "dir": "NW",
           "mph": 5.4
         },
         {
-          "hours_ago": 15,
+          "hours_ago": 16,
           "dir": "NW",
           "mph": 2.9
         },
         {
-          "hours_ago": 14,
+          "hours_ago": 15,
           "dir": "NW",
           "mph": 7.4
         },
         {
-          "hours_ago": 13,
+          "hours_ago": 14,
           "dir": "W",
           "mph": 6.0
         },
         {
-          "hours_ago": 12,
+          "hours_ago": 13,
           "dir": "WNW",
           "mph": 3.4
         },
         {
-          "hours_ago": 11,
+          "hours_ago": 12,
           "dir": "S",
           "mph": 10.1
         },
         {
-          "hours_ago": 10,
+          "hours_ago": 11,
           "dir": "S",
           "mph": 7.2
         },
         {
-          "hours_ago": 9,
+          "hours_ago": 10,
           "dir": "S",
           "mph": 8.7
         },
         {
-          "hours_ago": 8,
+          "hours_ago": 9,
           "dir": "WSW",
           "mph": 4.5
         },
         {
-          "hours_ago": 7,
+          "hours_ago": 8,
           "dir": "SW",
           "mph": 8.1
         },
         {
-          "hours_ago": 6,
+          "hours_ago": 7,
           "dir": "SW",
           "mph": 9.6
         },
         {
-          "hours_ago": 5,
+          "hours_ago": 6,
           "dir": "SW",
           "mph": 8.3
         },
         {
-          "hours_ago": 4,
+          "hours_ago": 5,
           "dir": "SW",
           "mph": 7.6
         },
         {
-          "hours_ago": 3,
+          "hours_ago": 4,
           "dir": "SW",
           "mph": 8.3
         },
         {
-          "hours_ago": 2,
+          "hours_ago": 3,
           "dir": "SW",
           "mph": 8.7
         },
         {
-          "hours_ago": 1,
+          "hours_ago": 2,
           "dir": "SW",
           "mph": 8.5
         },
         {
-          "hours_ago": 0,
+          "hours_ago": 1,
           "dir": "SW",
           "mph": 7.8
+        },
+        {
+          "hours_ago": 0,
+          "dir": "SW",
+          "mph": 6.3
         }
       ],
       "label": "Kewaunee MET station (nearest continuously-reporting wind station)",
@@ -1960,15 +1950,15 @@
     },
     "KSUE": {
       "available": true,
-      "observed_at_utc": "2026-09-11T10:50:00+00:00",
+      "observed_at_utc": "2026-09-11T11:50:00+00:00",
       "current_wind_dir": "SSW",
-      "current_wind_mph": 6.9,
+      "current_wind_mph": 8.1,
       "actual_hours_covered": 73,
       "hourly": [
         {
           "hours_ago": 72,
-          "dir": "S",
-          "mph": 8.1
+          "dir": "SSW",
+          "mph": 9.2
         },
         {
           "hours_ago": 71,
@@ -1982,48 +1972,48 @@
         },
         {
           "hours_ago": 69,
-          "dir": "SSW",
-          "mph": 9.2
-        },
-        {
-          "hours_ago": 68,
           "dir": "SW",
           "mph": 8.1
         },
         {
-          "hours_ago": 67,
+          "hours_ago": 68,
           "dir": "SW",
           "mph": 5.7
         },
         {
-          "hours_ago": 66,
+          "hours_ago": 67,
           "dir": "SSW",
           "mph": 9.2
         },
         {
-          "hours_ago": 65,
+          "hours_ago": 66,
           "dir": "S",
           "mph": 12.7
         },
         {
-          "hours_ago": 64,
+          "hours_ago": 65,
           "dir": "S",
           "mph": 11.5
         },
         {
-          "hours_ago": 63,
+          "hours_ago": 64,
           "dir": "S",
           "mph": 13.8
         },
         {
-          "hours_ago": 62,
+          "hours_ago": 63,
           "dir": "S",
           "mph": 17.3
         },
         {
-          "hours_ago": 61,
+          "hours_ago": 62,
           "dir": "SSW",
           "mph": 9.2
+        },
+        {
+          "hours_ago": 61,
+          "dir": "S",
+          "mph": 6.9
         },
         {
           "hours_ago": 60,
@@ -2033,17 +2023,17 @@
         {
           "hours_ago": 59,
           "dir": "S",
-          "mph": 6.9
+          "mph": 9.2
         },
         {
           "hours_ago": 58,
           "dir": "S",
-          "mph": 9.2
+          "mph": 8.1
         },
         {
           "hours_ago": 57,
           "dir": "S",
-          "mph": 8.1
+          "mph": 10.4
         },
         {
           "hours_ago": 56,
@@ -2052,32 +2042,32 @@
         },
         {
           "hours_ago": 55,
-          "dir": "S",
-          "mph": 10.4
-        },
-        {
-          "hours_ago": 54,
           "dir": "SSW",
           "mph": 9.2
         },
         {
-          "hours_ago": 53,
+          "hours_ago": 54,
           "dir": "SW",
           "mph": 8.1
         },
         {
-          "hours_ago": 52,
+          "hours_ago": 53,
           "dir": "WSW",
           "mph": 10.4
         },
         {
-          "hours_ago": 51,
+          "hours_ago": 52,
           "dir": "WSW",
           "mph": 9.2
         },
         {
-          "hours_ago": 50,
+          "hours_ago": 51,
           "dir": "WSW",
+          "mph": 10.4
+        },
+        {
+          "hours_ago": 50,
+          "dir": "W",
           "mph": 10.4
         },
         {
@@ -2088,122 +2078,122 @@
         {
           "hours_ago": 48,
           "dir": "W",
-          "mph": 10.4
+          "mph": 8.1
         },
         {
           "hours_ago": 47,
           "dir": "W",
-          "mph": 8.1
-        },
-        {
-          "hours_ago": 46,
-          "dir": "W",
           "mph": 6.9
         },
         {
-          "hours_ago": 45,
+          "hours_ago": 46,
           "dir": "WNW",
           "mph": 8.1
+        },
+        {
+          "hours_ago": 45,
+          "dir": "W",
+          "mph": 11.5
         },
         {
           "hours_ago": 44,
           "dir": "W",
-          "mph": 11.5
+          "mph": 13.8
         },
         {
           "hours_ago": 43,
           "dir": "W",
-          "mph": 13.8
+          "mph": 11.5
         },
         {
           "hours_ago": 42,
           "dir": "W",
-          "mph": 11.5
+          "mph": 15.0
         },
         {
           "hours_ago": 41,
           "dir": "W",
-          "mph": 15.0
+          "mph": 20.7
         },
         {
           "hours_ago": 40,
           "dir": "W",
-          "mph": 20.7
+          "mph": 18.4
         },
         {
           "hours_ago": 39,
           "dir": "W",
-          "mph": 18.4
+          "mph": 17.3
         },
         {
           "hours_ago": 38,
           "dir": "W",
-          "mph": 17.3
+          "mph": 10.4
         },
         {
           "hours_ago": 37,
           "dir": "W",
-          "mph": 10.4
+          "mph": 12.7
         },
         {
           "hours_ago": 36,
-          "dir": "W",
-          "mph": 12.7
+          "dir": "WNW",
+          "mph": 10.4
         },
         {
           "hours_ago": 35,
           "dir": "WNW",
-          "mph": 10.4
+          "mph": 8.1
         },
         {
           "hours_ago": 34,
-          "dir": "WNW",
+          "dir": "NW",
           "mph": 8.1
         },
         {
           "hours_ago": 33,
           "dir": "NW",
-          "mph": 8.1
+          "mph": 9.2
         },
         {
           "hours_ago": 32,
           "dir": "NW",
-          "mph": 9.2
-        },
-        {
-          "hours_ago": 31,
-          "dir": "NW",
           "mph": 5.7
         },
         {
-          "hours_ago": 30,
+          "hours_ago": 31,
           "dir": "WNW",
           "mph": 5.7
         },
         {
-          "hours_ago": 29,
+          "hours_ago": 30,
           "dir": "NW",
           "mph": 6.9
         },
         {
-          "hours_ago": 28,
+          "hours_ago": 29,
           "dir": "NW",
           "mph": 9.2
         },
         {
-          "hours_ago": 27,
+          "hours_ago": 28,
           "dir": "NW",
           "mph": 10.4
         },
         {
-          "hours_ago": 26,
+          "hours_ago": 27,
           "dir": "NW",
           "mph": 8.1
         },
         {
-          "hours_ago": 25,
+          "hours_ago": 26,
           "dir": "NW",
           "mph": 5.7
+        },
+        {
+          "hours_ago": 25,
+          "dir": "WSW",
+          "mph": 3.4
         },
         {
           "hours_ago": 24,
@@ -2212,78 +2202,78 @@
         },
         {
           "hours_ago": 23,
-          "dir": "WSW",
-          "mph": 3.4
-        },
-        {
-          "hours_ago": 22,
           "dir": "NW",
           "mph": 8.1
         },
         {
-          "hours_ago": 21,
+          "hours_ago": 22,
           "dir": "NNW",
           "mph": 9.2
         },
         {
-          "hours_ago": 20,
+          "hours_ago": 21,
           "dir": "NNW",
           "mph": 6.9
         },
         {
-          "hours_ago": 19,
+          "hours_ago": 20,
           "dir": "NNW",
           "mph": 5.7
         },
         {
-          "hours_ago": 18,
+          "hours_ago": 19,
           "dir": "NW",
           "mph": 6.9
         },
         {
-          "hours_ago": 17,
+          "hours_ago": 18,
           "dir": "WNW",
           "mph": 3.4
         },
         {
-          "hours_ago": 16,
+          "hours_ago": 17,
           "dir": "NNW",
           "mph": 8.1
         },
         {
-          "hours_ago": 15,
+          "hours_ago": 16,
           "dir": "W",
           "mph": 5.7
         },
         {
-          "hours_ago": 14,
+          "hours_ago": 15,
           "dir": "NW",
           "mph": 6.9
         },
         {
-          "hours_ago": 13,
+          "hours_ago": 14,
           "dir": "NW",
           "mph": 5.7
         },
         {
-          "hours_ago": 12,
+          "hours_ago": 13,
           "dir": "W",
           "mph": 5.7
         },
         {
-          "hours_ago": 11,
+          "hours_ago": 12,
           "dir": "ESE",
           "mph": 5.7
         },
         {
-          "hours_ago": 10,
+          "hours_ago": 11,
           "dir": "SE",
           "mph": 5.7
         },
         {
-          "hours_ago": 9,
+          "hours_ago": 10,
           "dir": "S",
           "mph": 5.7
+        },
+        {
+          "hours_ago": 9,
+          "dir": "SSW",
+          "mph": 6.9
         },
         {
           "hours_ago": 8,
@@ -2298,37 +2288,37 @@
         {
           "hours_ago": 6,
           "dir": "SSW",
-          "mph": 6.9
+          "mph": 8.1
         },
         {
           "hours_ago": 5,
-          "dir": "SSW",
-          "mph": 8.1
+          "dir": "SW",
+          "mph": 6.9
         },
         {
           "hours_ago": 4,
           "dir": "SW",
-          "mph": 6.9
-        },
-        {
-          "hours_ago": 3,
-          "dir": "SW",
           "mph": 5.7
         },
         {
-          "hours_ago": 2,
+          "hours_ago": 3,
           "dir": "SSW",
           "mph": 5.7
         },
         {
-          "hours_ago": 1,
+          "hours_ago": 2,
           "dir": "SW",
+          "mph": 6.9
+        },
+        {
+          "hours_ago": 1,
+          "dir": "SSW",
           "mph": 6.9
         },
         {
           "hours_ago": 0,
           "dir": "SSW",
-          "mph": 6.9
+          "mph": 8.1
         }
       ],
       "label": "Door County Cherryland Airport, Sturgeon Bay (nearest continuously-reporting wind station)",
@@ -2361,7 +2351,7 @@
     "model": "NOAA Lake Michigan\u2013Huron Operational Forecast System (LMHOFS)",
     "source_tier": "MODELED",
     "run_time_utc": "2026-09-11T06:00:00+00:00",
-    "run_age_hours": 5.1,
+    "run_age_hours": 6.1,
     "stale": false,
     "disclose_age": false,
     "mesh_node_count": 90806,
@@ -2494,18 +2484,18 @@
           "source_name": null,
           "explain": {
             "state": "favourable",
-            "hours": 38,
+            "hours": 37,
             "calm_hours": 0,
             "calm_share_pct": 0.0,
-            "avg_component": 0.798,
+            "avg_component": 0.793,
             "recent_component": 1.0,
             "onshore_shift": false,
             "top_dirs": [
-              "S",
-              "SSW"
+              "SSW",
+              "S"
             ],
             "source": "LIVE_STALE",
-            "text": "Wind has come mostly from the south and south-southwest over the past 38 hours. Under PierBite's wind model, wind from that quarter can pull colder water in toward the shore. The last reading from this sensor is 35.4 hours old."
+            "text": "Wind has come mostly from the south-southwest and south over the past 37 hours. Under PierBite's wind model, wind from that quarter can pull colder water in toward the shore. The last reading from this sensor is 36.4 hours old."
           },
           "tier": "Measured",
           "tier_symbol": "\u25cf",
@@ -2561,7 +2551,7 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-09-11T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 6.1,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": -7.9,
@@ -2573,7 +2563,7 @@
           "source": "LIVE_STALE",
           "source_name": null,
           "observed_at_utc": "2026-09-09T23:40:00+00:00",
-          "age_hours": 35.4,
+          "age_hours": 36.4,
           "wind_model": "upwelling_v2"
         },
         "wind_station_label": "Neshotah Park Met Station (GLOS Seagull, ~0.6 mi from the Two Rivers pier \u2014 wind only, replaces KMTW/Manitowoc Airport as of v21)",
@@ -2594,7 +2584,7 @@
     },
     "manitowoc": {
       "name": "Manitowoc",
-      "score": 74,
+      "score": 73,
       "band": {
         "label": "Good",
         "tone": "good"
@@ -2620,7 +2610,7 @@
             "calm_hours": 4,
             "calm_share_pct": 5.5,
             "avg_component": 0.738,
-            "recent_component": 0.615,
+            "recent_component": 0.734,
             "onshore_shift": false,
             "top_dirs": [
               "W",
@@ -2645,7 +2635,7 @@
         },
         {
           "label": "Lake Conditions",
-          "score": 90,
+          "score": 84,
           "weight": 20,
           "source": "FORECAST",
           "source_name": null,
@@ -2683,18 +2673,18 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-09-11T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 6.1,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": -8.4,
         "wind": {
-          "dir": "N",
-          "mph": 0.0,
+          "dir": "SW",
+          "mph": 3.4,
           "mph_low": null,
           "mph_high": null,
           "source": "LIVE",
           "source_name": null,
-          "observed_at_utc": "2026-09-11T10:50:00+00:00",
+          "observed_at_utc": "2026-09-11T11:50:00+00:00",
           "age_hours": 0.3,
           "wind_model": "upwelling_v2"
         },
@@ -2703,7 +2693,7 @@
         "wind_tier": "Measured",
         "wind_tier_symbol": "\u25cf",
         "wind_locality": "at_pier",
-        "wave_ft": 1.0,
+        "wave_ft": 2.0,
         "wave_source": "FORECAST",
         "wave_station_label": "NWS marine forecast \u2014 Two Rivers to Sheboygan WI",
         "wave_distance_mi": null,
@@ -2716,7 +2706,7 @@
     },
     "sheboygan": {
       "name": "Sheboygan",
-      "score": 68,
+      "score": 69,
       "band": {
         "label": "Fair",
         "tone": "gold"
@@ -2732,24 +2722,24 @@
       "factors": [
         {
           "label": "Wind / Upwelling",
-          "score": 74,
+          "score": 75,
           "weight": 30,
           "source": "LIVE",
           "source_name": null,
           "explain": {
             "state": "favourable",
             "hours": 73,
-            "calm_hours": 13,
-            "calm_share_pct": 17.8,
-            "avg_component": 0.638,
-            "recent_component": 0.266,
+            "calm_hours": 12,
+            "calm_share_pct": 16.4,
+            "avg_component": 0.651,
+            "recent_component": 0.385,
             "onshore_shift": false,
             "top_dirs": [
               "W",
               "S"
             ],
             "source": "LIVE",
-            "text": "Wind has come mostly from the west and south over the past 3 days. Under PierBite's wind model, wind from that quarter can pull colder water in toward the shore. About 18% of those hours were dead calm."
+            "text": "Wind has come mostly from the west and south over the past 3 days. Under PierBite's wind model, wind from that quarter can pull colder water in toward the shore. About 16% of those hours were dead calm."
           },
           "tier": "Measured",
           "tier_symbol": "\u25cf",
@@ -2805,18 +2795,18 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-09-11T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 6.1,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": -2.9,
         "wind": {
-          "dir": "SW",
-          "mph": 4.6,
+          "dir": "SSW",
+          "mph": 3.4,
           "mph_low": null,
           "mph_high": null,
           "source": "LIVE",
           "source_name": null,
-          "observed_at_utc": "2026-09-11T10:50:00+00:00",
+          "observed_at_utc": "2026-09-11T11:50:00+00:00",
           "age_hours": 0.3,
           "wind_model": "upwelling_v2"
         },
@@ -2832,13 +2822,13 @@
         "wave_tier": "Forecast",
         "wave_tier_symbol": "\u25d4",
         "wave_locality": "area",
-        "pressure_hpa": 1016.7,
+        "pressure_hpa": 1017.1,
         "pressure_tendency_3h_hpa": null
       }
     },
     "kewaunee": {
       "name": "Kewaunee",
-      "score": 71,
+      "score": 70,
       "band": {
         "label": "Good",
         "tone": "good"
@@ -2864,7 +2854,7 @@
             "calm_hours": 0,
             "calm_share_pct": 0.0,
             "avg_component": 0.776,
-            "recent_component": 0.965,
+            "recent_component": 1.0,
             "onshore_shift": false,
             "top_dirs": [
               "WNW",
@@ -2889,7 +2879,7 @@
         },
         {
           "label": "Lake Conditions",
-          "score": 90,
+          "score": 84,
           "weight": 20,
           "source": "FORECAST",
           "source_name": null,
@@ -2927,18 +2917,18 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-09-11T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 6.1,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": -6.1,
         "wind": {
           "dir": "SW",
-          "mph": 7.8,
+          "mph": 6.3,
           "mph_low": null,
           "mph_high": null,
           "source": "LIVE",
           "source_name": null,
-          "observed_at_utc": "2026-09-11T10:18:00+00:00",
+          "observed_at_utc": "2026-09-11T11:18:00+00:00",
           "age_hours": 0.8,
           "wind_model": "upwelling_v2"
         },
@@ -2947,7 +2937,7 @@
         "wind_tier": "Measured",
         "wind_tier_symbol": "\u25cf",
         "wind_locality": "at_pier",
-        "wave_ft": 1.0,
+        "wave_ft": 2.0,
         "wave_source": "FORECAST",
         "wave_station_label": "NWS marine forecast \u2014 Sturgeon Bay to Two Rivers WI",
         "wave_distance_mi": null,
@@ -2960,7 +2950,7 @@
     },
     "algoma": {
       "name": "Algoma",
-      "score": 76,
+      "score": 75,
       "band": {
         "label": "Good",
         "tone": "good"
@@ -2988,7 +2978,7 @@
             "calm_hours": 0,
             "calm_share_pct": 0.0,
             "avg_component": 0.776,
-            "recent_component": 0.965,
+            "recent_component": 1.0,
             "onshore_shift": false,
             "top_dirs": [
               "WNW",
@@ -3013,7 +3003,7 @@
         },
         {
           "label": "Lake Conditions",
-          "score": 90,
+          "score": 84,
           "weight": 20,
           "source": "FORECAST",
           "source_name": null,
@@ -3051,18 +3041,18 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-09-11T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 6.1,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": -9.3,
         "wind": {
           "dir": "SW",
-          "mph": 7.8,
+          "mph": 6.3,
           "mph_low": null,
           "mph_high": null,
           "source": "ESTIMATED",
           "source_name": "Kewaunee",
-          "observed_at_utc": "2026-09-11T10:18:00+00:00",
+          "observed_at_utc": "2026-09-11T11:18:00+00:00",
           "age_hours": 0.8,
           "wind_model": "upwelling_v2"
         },
@@ -3071,7 +3061,7 @@
         "wind_tier": "Measured",
         "wind_tier_symbol": "\u25cf",
         "wind_locality": "borrowed",
-        "wave_ft": 1.0,
+        "wave_ft": 2.0,
         "wave_source": "FORECAST",
         "wave_station_label": "NWS marine forecast \u2014 Sturgeon Bay to Two Rivers WI",
         "wave_distance_mi": null,
@@ -3084,7 +3074,7 @@
     },
     "sturgeon_bay": {
       "name": "Sturgeon Bay",
-      "score": 77,
+      "score": 76,
       "band": {
         "label": "Good",
         "tone": "good"
@@ -3114,10 +3104,10 @@
             "onshore_shift": false,
             "top_dirs": [
               "W",
-              "NW"
+              "SSW"
             ],
             "source": "LIVE",
-            "text": "Wind has come mostly from the west and northwest over the past 3 days. Under PierBite's wind model, wind from that quarter can pull colder water in toward the shore."
+            "text": "Wind has come mostly from the west and south-southwest over the past 3 days. Under PierBite's wind model, wind from that quarter can pull colder water in toward the shore."
           },
           "tier": "Measured",
           "tier_symbol": "\u25cf",
@@ -3135,7 +3125,7 @@
         },
         {
           "label": "Lake Conditions",
-          "score": 90,
+          "score": 84,
           "weight": 20,
           "source": "FORECAST",
           "source_name": null,
@@ -3173,18 +3163,18 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-09-11T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 6.1,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": -10.1,
         "wind": {
           "dir": "SSW",
-          "mph": 6.9,
+          "mph": 8.1,
           "mph_low": null,
           "mph_high": null,
           "source": "LIVE",
           "source_name": null,
-          "observed_at_utc": "2026-09-11T10:50:00+00:00",
+          "observed_at_utc": "2026-09-11T11:50:00+00:00",
           "age_hours": 0.3,
           "wind_model": "upwelling_v2"
         },
@@ -3193,7 +3183,7 @@
         "wind_tier": "Measured",
         "wind_tier_symbol": "\u25cf",
         "wind_locality": "at_pier",
-        "wave_ft": 1.0,
+        "wave_ft": 2.0,
         "wave_source": "FORECAST",
         "wave_station_label": "NWS marine forecast \u2014 Sturgeon Bay to Two Rivers WI",
         "wave_distance_mi": null,
@@ -3222,16 +3212,16 @@
       "factors": [
         {
           "label": "Wind / Upwelling",
-          "score": 70,
+          "score": 71,
           "weight": 30,
           "source": "LIVE_STALE",
           "source_name": null,
           "explain": {
             "state": "favourable",
-            "hours": 38,
+            "hours": 37,
             "calm_hours": 0,
             "calm_share_pct": 0.0,
-            "avg_component": 0.527,
+            "avg_component": 0.556,
             "recent_component": 0.894,
             "onshore_shift": false,
             "top_dirs": [
@@ -3239,7 +3229,7 @@
               "SE"
             ],
             "source": "LIVE_STALE",
-            "text": "Wind has come mostly from the south-southeast and southeast over the past 38 hours. Under PierBite's wind model, wind from that quarter can pull colder water in toward the shore. The last reading from this sensor is 35.3 hours old."
+            "text": "Wind has come mostly from the south-southeast and southeast over the past 37 hours. Under PierBite's wind model, wind from that quarter can pull colder water in toward the shore. The last reading from this sensor is 36.3 hours old."
           },
           "tier": "Measured",
           "tier_symbol": "\u25cf",
@@ -3295,7 +3285,7 @@
         "water_temp_tier_symbol": "\u25d0",
         "water_temp_locality": "at_pier",
         "water_temp_model_run_utc": "2026-09-11T06:00:00+00:00",
-        "water_temp_model_age_hours": 5.1,
+        "water_temp_model_age_hours": 6.1,
         "water_temp_model_disclose_age": false,
         "water_change_24h_f": null,
         "water_change_72h_f": -7.5,
@@ -3307,7 +3297,7 @@
           "source": "LIVE_STALE",
           "source_name": null,
           "observed_at_utc": "2026-09-09T23:50:00+00:00",
-          "age_hours": 35.3,
+          "age_hours": 36.3,
           "wind_model": "upwelling_v2"
         },
         "wind_station_label": "Port Washington Met Station (GLOS Seagull, 5.0 mi offshore \u2014 wind only)",
@@ -3333,12 +3323,12 @@
   "open_lake_context": {
     "available": true,
     "buoy_label": "Rawley Point East buoy (NDBC 45210) \u2014 open lake, deep water",
-    "buoy_temp_f": 71.4,
+    "buoy_temp_f": 71.6,
     "buoy_distance_mi": 26.37,
     "model_open_lake_temp_f": 70.1,
     "nearshore_temp_f": 59.9,
     "nearshore_pier": "Two Rivers / Neshotah",
-    "gap_f": 11.5,
+    "gap_f": 11.7,
     "note": "Open-lake and nearshore water are not the same water. This is the difference between a reading taken at the pier and one taken in deep water offshore."
   }
 }
