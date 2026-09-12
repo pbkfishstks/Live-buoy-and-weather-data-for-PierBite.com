@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-09-12T09:05:13.321809+00:00",
+  "generated_at_utc": "2026-09-12T09:06:44.639318+00:00",
   "stations": {
     "tr1": {
       "available": true,
@@ -37,15 +37,15 @@
     },
     "SGNW3": {
       "available": true,
-      "observed_at_utc": "2026-09-12T08:20:00+00:00",
-      "wind_dir": "SSW",
-      "wind_mph": 11.4,
-      "gust_mph": 16.1,
+      "observed_at_utc": "2026-09-12T08:40:00+00:00",
+      "wind_dir": "S",
+      "wind_mph": 12.8,
+      "gust_mph": 13.9,
       "wave_ft": null,
       "water_temp_f": null,
       "water_change_24h_f": null,
       "water_change_72h_f": null,
-      "pressure_hpa": 1010.2,
+      "pressure_hpa": 1010.1,
       "pressure_tendency_3h_hpa": null,
       "label": "Sheboygan, WI shore station (NDBC SGNW3)",
       "lat": 43.749,
@@ -54,11 +54,11 @@
     },
     "45002": {
       "available": true,
-      "observed_at_utc": "2026-09-12T08:20:00+00:00",
+      "observed_at_utc": "2026-09-12T08:40:00+00:00",
       "wind_dir": "S",
       "wind_mph": 17.9,
       "gust_mph": 20.1,
-      "wave_ft": 4.27,
+      "wave_ft": null,
       "water_temp_f": 68.9,
       "water_change_24h_f": -0.7,
       "water_change_72h_f": -1.4,
@@ -1596,7 +1596,7 @@
         {
           "hours_ago": 72,
           "dir": "SW",
-          "mph": 4.9
+          "mph": 5.8
         },
         {
           "hours_ago": 71,
@@ -2510,7 +2510,7 @@
               "S"
             ],
             "source": "LIVE_STALE",
-            "text": "Wind favoured cold water for most of the past 40 hours, but it has swung back onshore in the last 12 hours. Under PierBite's wind model, a recent shift like that can push cold water away from the pier before it arrives, so the score is held down. The last reading from this sensor is 33.4 hours old."
+            "text": "Wind favoured cold water for most of the past 40 hours, but it has swung back onshore in the last 12 hours. Under PierBite's wind model, a recent shift like that can push cold water away from the pier before it arrives, so the score is held down. The last reading from this sensor is 33.5 hours old."
           },
           "tier": "Measured",
           "tier_symbol": "\u25cf",
@@ -2578,7 +2578,7 @@
           "source": "LIVE_STALE",
           "source_name": null,
           "observed_at_utc": "2026-09-10T23:40:00+00:00",
-          "age_hours": 33.4,
+          "age_hours": 33.5,
           "wind_model": "upwelling_v2"
         },
         "wind_station_label": "Neshotah Park Met Station (GLOS Seagull, ~0.6 mi from the Two Rivers pier \u2014 wind only, replaces KMTW/Manitowoc Airport as of v21)",
@@ -2837,7 +2837,7 @@
         "wave_tier": "Forecast",
         "wave_tier_symbol": "\u25d4",
         "wave_locality": "area",
-        "pressure_hpa": 1010.2,
+        "pressure_hpa": 1010.1,
         "pressure_tendency_3h_hpa": null
       }
     },
