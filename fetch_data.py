@@ -4,7 +4,18 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
-PIERBITE fetch_data.py | 2026-08-30 16:40 UTC | v28 | LMHOFS label prefix removed at source (D365)
+PIERBITE fetch_data.py | 2026-09-16 | v29 | LMHOFS OPeNDAP endpoint failover
+
+
+v29 (2026-09-16). ONE BEHAVIOURAL CHANGE, LIMITED TO LMHOFS CONNECTION
+FAILOVER. NOAA's current LMHOFS files are publishing, but the live fetcher
+was hard-wired to one CO-OPS THREDDS OPeNDAP route. When that route stopped
+answering, model_water_temp became unavailable and the Carrd Conditions Map
+lost its modeled pier dots and temperature color wash even though NOAA still
+had current LMHOFS data. The fetcher now tries NOAA's threddsdev OPeNDAP
+route first and the former thredds route second. The required file remains
+fields.n006.nc; no scoring, node index, staleness rule, temperature formula,
+trend formula, output key, Carrd code, or PWA code changes in this version.
 
 v28 (2026-08-30, decision D365). ONE STRING CHANGE, NO SCORE MOVES, NO KEY
 ADDED OR REMOVED. water_station_label's MODELED branch used to read "NOAA
@@ -1131,9 +1142,15 @@ NWS_USER_AGENT = "PierBiteDotCom (contact: pierbite project owner)"
 #     Re-derive them only by re-running lmhofs-water-temp-probe-
 #     2026-07-25-v6.py, which lives in this repository.
 # ---------------------------------------------------------------
-LMHOFS_BASE_DIR = (
-    "https://opendap.co-ops.nos.noaa.gov/thredds/dodsC/"
-    "NOAA/LMHOFS/MODELS/{yyyy}/{mm}/{dd}/"
+LMHOFS_BASE_DIRS = (
+    (
+        "https://opendap.co-ops.nos.noaa.gov/threddsdev/dodsC/"
+        "NOAA/LMHOFS/MODELS/{yyyy}/{mm}/{dd}/"
+    ),
+    (
+        "https://opendap.co-ops.nos.noaa.gov/thredds/dodsC/"
+        "NOAA/LMHOFS/MODELS/{yyyy}/{mm}/{dd}/"
+    ),
 )
 # nNNN = NOWCAST hour. fNNN would be the forecast. NOAA does not put
 # the word "nowcast" anywhere in this filename — see the module
@@ -1914,10 +1931,13 @@ def lmhofs_find_run():
                 return None, None, None  # D82: too old to be worth using
             parts = {"yyyy": day.strftime("%Y"), "mm": day.strftime("%m"),
                      "dd": day.strftime("%d"), "cycle": cycle}
-            url = LMHOFS_BASE_DIR.format(**parts) + LMHOFS_FIELDS_FILE.format(**parts)
-            ok, body = lmhofs_get(url + ".dds", max_chars=4000)
-            if ok and "Dataset" in body:
-                return url, run_time, round(age_hours, 1)
+            filename = LMHOFS_FIELDS_FILE.format(**parts)
+            for base_dir in LMHOFS_BASE_DIRS:
+                url = base_dir.format(**parts) + filename
+                ok, body = lmhofs_get(url + ".dds", max_chars=4000)
+                if ok and "Dataset" in body:
+                    print("LMHOFS OPeNDAP route: %s" % base_dir.split("/dodsC/")[0])
+                    return url, run_time, round(age_hours, 1)
     return None, None, None
 
 
@@ -1958,10 +1978,12 @@ def lmhofs_find_run_near(target_time, tolerance_hours=LMHOFS_HISTORY_TOLERANCE_H
     for _, offset, run_time, cycle, day in candidates:
         parts = {"yyyy": day.strftime("%Y"), "mm": day.strftime("%m"),
                  "dd": day.strftime("%d"), "cycle": cycle}
-        url = LMHOFS_BASE_DIR.format(**parts) + LMHOFS_FIELDS_FILE.format(**parts)
-        ok, body = lmhofs_get(url + ".dds", max_chars=4000)
-        if ok and "Dataset" in body:
-            return url, run_time, round(offset, 2)
+        filename = LMHOFS_FIELDS_FILE.format(**parts)
+        for base_dir in LMHOFS_BASE_DIRS:
+            url = base_dir.format(**parts) + filename
+            ok, body = lmhofs_get(url + ".dds", max_chars=4000)
+            if ok and "Dataset" in body:
+                return url, run_time, round(offset, 2)
     return None, None, None
 
 
