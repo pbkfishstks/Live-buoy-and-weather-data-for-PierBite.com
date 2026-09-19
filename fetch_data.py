@@ -4,8 +4,31 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
-PIERBITE fetch_data.py | 2026-09-16 | v29 | LMHOFS OPeNDAP endpoint failover
+PIERBITE fetch_data.py | 2026-09-19 | v30 | wind history "hours_ago" anchored to run time
 
+
+v30 (2026-09-19). ONE BEHAVIOURAL CHANGE, LIMITED TO THE HOURLY WIND-HISTORY
+DOWNSAMPLE LOOP IN BOTH HISTORY FETCHERS. Both fetch_station_history() (NWS
+airports) and fetch_glos_wind_history() (GLOS Seagull) labelled each hourly
+row "hours_ago" by counting backwards from the station's OWN LAST READING
+(target = latest["time"] - h hours). That is correct only while a station is
+reporting on time. When a station goes quiet it is silently wrong: on
+2026-09-19 the Neshotah Park (trw, Two Rivers) and Port Washington (pww)
+Seagull stations had not reported for ~43 hours, so their "0 hours ago" row
+was really ~43 hours old and their "29 hours ago" row was really ~72 hours
+old. Every consumer of that field - the pier-page wind charts, the Compare
+Piers strips, the PWA, and score_wind()'s "recent 12 hours" test - inherited
+the wrong ages.
+
+THE FIX: both loops now count backwards from the run time (now), stepping
+h = 72 down to 0 with target = now - h hours. The existing 30-minute matching
+tolerance is unchanged, so an hour with no real reading near it is simply not
+emitted - a dead station now produces rows at their TRUE ages (e.g. 43..72)
+and leaves a genuine gap at the recent end instead of pretending to be
+current. Nothing else changes in this version: same request chunks, same
+units, same output keys, same observed_at_utc, same actual_hours_covered,
+no scoring formula change, no node/staleness/label change, no Carrd or PWA
+code change (D146: one behavioural change per version; D449).
 
 v29 (2026-09-16). ONE BEHAVIOURAL CHANGE, LIMITED TO LMHOFS CONNECTION
 FAILOVER. NOAA's current LMHOFS files are publishing, but the live fetcher
@@ -1616,12 +1639,14 @@ def fetch_station_history(station_id):
     earliest = raw[0]
     actual_hours_covered = round((latest["time"] - earliest["time"]).total_seconds() / 3600)
 
-    # Downsample: for each whole hour back from now, keep the single
-    # real reading closest to that hour mark (skip hours with no data).
+    # Downsample: for each whole hour back from NOW (the run time, not the
+    # station's last reading - v30/D449), keep the single real reading
+    # closest to that hour mark. Hours with no reading within the tolerance
+    # below are simply not emitted, so a station that has stopped reporting
+    # produces rows at their true ages and an honest gap at the recent end.
     hourly = []
-    max_hours = min(actual_hours_covered, 72)
-    for h in range(max_hours, -1, -1):
-        target = latest["time"] - timedelta(hours=h)
+    for h in range(72, -1, -1):
+        target = now - timedelta(hours=h)
         closest = min(raw, key=lambda r: abs((r["time"] - target).total_seconds()))
         if abs((closest["time"] - target).total_seconds()) <= 1800:  # within 30 min
             hourly.append({"hours_ago": h, "dir": closest["wind_dir"], "mph": closest["wind_mph"]})
@@ -1719,10 +1744,11 @@ def fetch_glos_wind_history(dataset_id):
     earliest = raw[0]
     actual_hours_covered = round((latest["time"] - earliest["time"]).total_seconds() / 3600)
 
+    # Same run-time anchoring as fetch_station_history() above (v30/D449):
+    # count back from now, not from this station's last reading.
     hourly = []
-    max_hours = min(actual_hours_covered, 72)
-    for h in range(max_hours, -1, -1):
-        target = latest["time"] - timedelta(hours=h)
+    for h in range(72, -1, -1):
+        target = now - timedelta(hours=h)
         closest = min(raw, key=lambda r: abs((r["time"] - target).total_seconds()))
         if abs((closest["time"] - target).total_seconds()) <= 1800:  # within 30 min
             hourly.append({"hours_ago": h, "dir": closest["wind_dir"], "mph": closest["wind_mph"]})
