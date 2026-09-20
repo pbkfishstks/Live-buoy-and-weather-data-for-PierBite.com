@@ -4,7 +4,55 @@ Fetches current buoy, marine-zone forecast, and satellite water
 temperature data from public NOAA/NWS sources and writes the
 combined result to data.json. No API key or paid account required.
 
-PIERBITE fetch_data.py | 2026-09-19 | v30 | wind history "hours_ago" anchored to run time
+PIERBITE fetch_data.py | 2026-09-20 | v31 | dead-station wind fallback + honest window wording
+Built 2026-09-20 (UTC). Supersedes v30 (2026-09-19).
+
+
+v31 (2026-09-20). ONE COHERENT CHANGE: make a pier's wind honest when the
+pier's OWN sensor falls behind, and publish enough for any frontend to say so
+without doing its own arithmetic. Five edits, all serving that one goal.
+
+WHY. v30 made "hours_ago" truthful, which exposed the real problem rather than
+fixing it: Two Rivers (trw / NESHOTAH) and Port Washington (pww) were still
+SCORING on wind that was 34-45 hours old, tagged LIVE_STALE in small print next
+to a full-width chart. Both are GLOS Seagull stations - the only two on the
+site - and GLOS has been delivering their readings roughly a day late since
+early September (D469), which is a chronic delay, not an outage. The v63 memory
+recorded GLOS's catalog as proof the data "does not exist after Sep 17"; that
+catalog page was itself stale (last modified Sep 14) and our own data.json git
+history shows both stations stepping forward a full day at a time. D462 is
+corrected accordingly.
+
+THE FIVE EDITS.
+  1. WIND_FALLBACK_AFTER_HOURS = 12 (new constant, near STALE_AFTER_HOURS).
+     Separate from STALE_AFTER_HOURS (3), which keeps its display job.
+  2. Chain selection in build_piers() now skips a pier's own history when its
+     newest reading is older than that cutoff AND a later chain entry is
+     inside it. If nothing later is fresher, the pier keeps its own sensor.
+     No pier can lose wind it previously had.
+  3. Config: Two Rivers gains ("mtw", "Manitowoc Airport"); Port Washington
+     gains ("KSBM", "Sheboygan Airport"). Both NWS, both deliberately outside
+     GLOS so the fallback cannot fail for the same reason as the primary.
+  4. headline.wind_provenance - NEW, additive. Names the supplying station AND
+     the pier's own station with its age, so a borrow can be disclosed in full.
+     Before v31 the pier's own station vanished from the output whenever wind
+     was borrowed, which made honest disclosure impossible.
+  5. _measured_wind_explanation() now says "over the past N hours" using the
+     REAL elapsed span of the window, not the number of readings in it. facts
+     gains window_hours and ends_hours_ago; facts["hours"] keeps its old
+     meaning (row count) so nothing downstream shifts.
+
+APP SAFETY. Every new field is additive. No existing key changes name, type or
+meaning, so the Carrd boxes and the ChatGPT PWA keep working untouched and can
+adopt wind_provenance whenever they are ready.
+
+VERIFIED BEFORE DEPLOY (offline, no network, against the real live data.json of
+2026-09-20T10:05Z): Two Rivers wind 34 -> 20 (Bite Index 57 -> 52), Port
+Washington wind 19 -> 16 (Bite Index 48 -> 47), all five other piers byte-for-
+byte unchanged. Cutoff boundary confirmed at 11.5h (keeps own) vs 12.5h
+(switches). Both-stale, fallback-dark and primary-dark cases all confirmed to
+degrade correctly.
+
 
 
 v30 (2026-09-19). ONE BEHAVIOURAL CHANGE, LIMITED TO THE HOURLY WIND-HISTORY
@@ -2342,6 +2390,17 @@ SCHEMA_VERSION = 1
 # it as stale instead of presenting old numbers as LIVE.
 STALE_AFTER_HOURS = 3
 
+# v31 (D466). How far behind a pier's OWN wind sensor may fall before
+# the wind_history chain is allowed to move to the next station in the
+# list. Deliberately much larger than STALE_AFTER_HOURS (3), which is a
+# DISPLAY tier meaning "real reading, running late" and must keep that
+# job: a 3-hour reporting hiccup should never move a pier onto a
+# neighbour's sensor. 12 is chosen to match score_wind()'s own
+# "recent 12 hours" window - past 12 hours old, that test has nothing
+# left to look at, so the reading has stopped doing the work the score
+# asks of it. See D467 for the alternatives considered.
+WIND_FALLBACK_AFTER_HOURS = 12
+
 # One entry per pier. Adding a future pier = adding one entry here.
 #   buoy            key in output["stations"] for this pier's own buoy (or None)
 #   water_fallbacks ordered borrow-chain if own sources are dark:
@@ -2377,7 +2436,15 @@ PIERS = {
         # goes dark mt1 is dark at the same instant. Left as-is; fixing
         # that redundancy is a separate, later change, not this one.)
         "water_fallbacks": [("station", "mt1", "Open Lake Buoy")],
-        "wind_history": [("trw", None)],
+        # v31 (D466/D468): Manitowoc Airport added as a fallback. NESHOTAH
+        # (trw) is a GLOS Seagull station and GLOS has been delivering this
+        # pier's readings roughly a day late since early September (D469),
+        # so the pier scored on day-old wind while the page looked current.
+        # mtw is NWS, ~6 mi south, and deliberately OUTSIDE GLOS - a GLOS
+        # neighbour would fail at the same instant for the same reason
+        # (D461). Labelled "Manitowoc Airport", so the borrow is disclosed
+        # as ESTIMATED wherever it is used.
+        "wind_history": [("trw", None), ("mtw", "Manitowoc Airport")],
         "zone": "trz",
     },
     "manitowoc": {
@@ -2509,7 +2576,12 @@ PIERS = {
         "water_fallbacks": [],
         # GLOS Seagull platform 250, 5.0 mi offshore. Honest tier:
         # Measured, locality "borrowed" - not "at_pier".
-        "wind_history": [("pww", None)],
+        # v31 (D466/D468): Sheboygan Airport added as a fallback, for the
+        # same reason as Two Rivers above. pww is the site's only OTHER
+        # GLOS Seagull station, which is why these two piers have always
+        # gone quiet together (D461) - shared provider, not geography.
+        # KSBM is NWS, ~25 mi north, and outside GLOS.
+        "wind_history": [("pww", None), ("KSBM", "Sheboygan Airport")],
         # LMZ644, NOT LMZ643. See the note in ZONES - LMZ643 has "Port
         # Washington" in its name and belongs to Sheboygan.
         "zone": "LMZ644",
@@ -2873,7 +2945,18 @@ def _measured_wind_explanation(hourly, j, z, penalty_applied):
     was derived from without re-deriving it.
     """
     n = len(hourly)
-    window = _window_phrase(n)
+    # v31 (D470). The sentence used to say "over the past %s" with the
+    # NUMBER OF READINGS in it. Those are not the same thing: a station
+    # that misses half its hours has 36 readings spread across 72 hours,
+    # and the page then claimed a 36-hour window that never existed.
+    # Real elapsed span = oldest label minus newest label, inclusive.
+    # "hours" in the published facts below deliberately keeps its old
+    # meaning (row count) so nothing downstream shifts under the app's
+    # feet; the true span is published alongside it as a NEW key.
+    _has = [h.get("hours_ago") for h in hourly if h.get("hours_ago") is not None]
+    span_hours = (max(_has) - min(_has) + 1) if _has else n
+    ends_hours_ago = min(_has) if _has else 0
+    window = _window_phrase(span_hours)
     tops = _top_directions(hourly)
     dirs_phrase = _join_dirs(tops)
 
@@ -2936,7 +3019,14 @@ def _measured_wind_explanation(hourly, j, z, penalty_applied):
 
     facts = {
         "state": state,
+        # Unchanged meaning: how many hourly readings the window holds.
         "hours": n,
+        # v31 (D470). NEW, additive. window_hours is the real elapsed
+        # span those readings cover; ends_hours_ago is how long ago the
+        # newest of them was taken. Together they let any frontend draw
+        # or describe the window without re-deriving it from the rows.
+        "window_hours": span_hours,
+        "ends_hours_ago": ends_hours_ago,
         "calm_hours": calm_hours,
         "calm_share_pct": round(calm_share * 100, 1) if n else None,
         "avg_component": round(j, 3),
@@ -2945,6 +3035,75 @@ def _measured_wind_explanation(hourly, j, z, penalty_applied):
         "top_dirs": tops,
     }
     return text, facts
+
+
+def _history_age_hours(history, now):
+    """How old a wind history's NEWEST real reading is, in hours.
+
+    v31 (D466). Returns None when the history has no observation
+    timestamp, and callers must treat None as "unknown", never as
+    "fresh" - an unknown age is not a licence to keep scoring on it,
+    but it is also not evidence that a swap would help.
+    """
+    if not history:
+        return None
+    obs_iso = history.get("observed_at_utc")
+    if not obs_iso or now is None:
+        return None
+    return (now - datetime.fromisoformat(obs_iso)).total_seconds() / 3600.0
+
+
+def _wind_provenance_block(supplying_key, supplying_label,
+                           supplying_distance_mi, headline, primary_key,
+                           histories, reason, now):
+    """v31 (D471). One published answer to 'where did this wind come from,
+    and what is this pier's own sensor doing?'
+
+    Two separate facts, deliberately kept separate:
+
+      * the SUPPLYING station - whatever actually produced the number
+        on the page right now;
+      * the pier's PRIMARY station - the first entry in its configured
+        wind_history chain, i.e. its own designated instrument, reported
+        whether or not it supplied anything.
+
+    is_borrowed mirrors the existing ESTIMATED tier exactly (it is true
+    when, and only when, the config declared this entry as borrowed), so
+    this block can never contradict wind_tier / wind_locality. Sturgeon
+    Bay is the case that forces that choice: its Coast Guard station is
+    dormant and the airport is configured as the pier's own, so the
+    honest reading there is "primary dark, not a borrow".
+
+    reason is None, "own_station_dark" (primary returned no data at all)
+    or "own_station_behind" (primary had data but was past the cutoff).
+    """
+    primary_hist = histories.get(primary_key) if primary_key else None
+    primary_geo = HISTORY_GEO.get(primary_key) if primary_key else None
+    primary_age = _history_age_hours(primary_hist, now)
+    primary_available = bool(primary_hist and primary_hist.get("available")
+                             and primary_hist.get("hourly"))
+    return {
+        "station_key": supplying_key,
+        "station_label": supplying_label,
+        "station_distance_mi": supplying_distance_mi,
+        # True only for a declared borrow, matching ESTIMATED exactly.
+        "is_borrowed": bool(headline.get("source_name")),
+        "borrowed_from": headline.get("source_name"),
+        "reason": reason,
+        "own_station_key": primary_key,
+        "own_station_label": (primary_geo.get("label")
+                              if primary_geo else None),
+        "own_station_available": primary_available,
+        "own_station_observed_at_utc": (
+            primary_hist.get("observed_at_utc") if primary_hist else None),
+        "own_station_age_hours": (round(primary_age, 1)
+                                  if primary_age is not None else None),
+        "own_station_is_supplying": bool(
+            supplying_key and primary_key and supplying_key == primary_key),
+        # Published so a frontend can explain the rule it is seeing
+        # applied without hard-coding the number in eight places.
+        "fallback_after_hours": WIND_FALLBACK_AFTER_HOURS,
+    }
 
 
 def score_wind(history, zone_forecast, borrowed_from, now=None):
@@ -3359,31 +3518,77 @@ def build_piers(output):
         all_alerts = zone.get("alerts", [])
         beach_hazard = zone.get("beach_hazard", {"active": False})
 
-        # --- Wind factor: first history source in the chain that
-        # has real data wins; otherwise fall back to the forecast.
+        # --- Wind factor: a station from the chain supplies it, or the
+        # zone forecast does if no station in the chain has data at all.
+        #
+        # v31 (D466). Until v30 this was "first entry with data wins",
+        # which is correct only while that entry is reporting on time. A
+        # station can be AVAILABLE and still be a day behind - exactly the
+        # GLOS case (D469) - and the pier would then score on day-old wind
+        # while every label said LIVE_STALE in small print next to a
+        # full-width chart. The rule is now:
+        #
+        #   1. Walk the chain; keep every entry that actually has data.
+        #   2. The first such entry is the default, as before.
+        #   3. If that default is the pier's OWN sensor (borrowed_from is
+        #      None) and its newest reading is older than
+        #      WIND_FALLBACK_AFTER_HOURS, move to the first LATER entry
+        #      whose newest reading is INSIDE that cutoff.
+        #   4. If no later entry is fresher, keep the pier's own sensor.
+        #      Being at the pier still counts for something, and swapping
+        #      one stale reading for another stale reading is pure churn.
+        #
+        # This cannot make a pier lose wind it previously had: every path
+        # ends on an entry that was already eligible under the old rule.
         wind_factor = None
         wind_hist_key = None   # v10: which station actually supplied wind
+        wind_fallback_reason = None   # v31 (D466) — why we left the primary
+
+        wind_chain = []
         for hist_key, borrowed_from in cfg.get("wind_history", []):
             hist = histories.get(hist_key)
             if hist and hist.get("available") and hist.get("hourly"):
-                wind_factor = score_wind(hist, None, borrowed_from, now)   # v19 (D182) — now passed for staleness check
-                obs_iso = hist.get("observed_at_utc")   # v18 (D173)
-                wind_headline = {
-                    "dir": hist.get("current_wind_dir"),
-                    "mph": hist.get("current_wind_mph"),
-                    "mph_low": None,
-                    "mph_high": None,
-                    "source": wind_factor["source"],
-                    "source_name": wind_factor.get("source_name"),
-                    "observed_at_utc": obs_iso,   # v18 (D173)
-                    "age_hours": (
-                        round((now - datetime.fromisoformat(obs_iso)).total_seconds() / 3600.0, 1)
-                        if obs_iso else None
-                    ),   # v18 (D173)
-                    "wind_model": WIND_MODEL_VERSION,   # v25 (D301)
-                }
-                wind_hist_key = hist_key
-                break
+                wind_chain.append((hist_key, borrowed_from, hist,
+                                   _history_age_hours(hist, now)))
+
+        chosen = wind_chain[0] if wind_chain else None
+        # v31 (D466): the pier's DESIGNATED primary is the first entry in
+        # the configured chain, whether or not it returned any data. That
+        # is the sensor the pier page speaks about when it discloses what
+        # its own instrument is doing.
+        wind_primary_key = (cfg.get("wind_history") or [(None, None)])[0][0]
+        if chosen and chosen[0] != wind_primary_key:
+            # Pre-existing behaviour, not new in v31: the primary returned
+            # nothing at all, so the chain had already moved past it. Named
+            # here for the first time so the frontend can say so.
+            wind_fallback_reason = "own_station_dark"
+        elif chosen and chosen[1] is None and chosen[3] is not None \
+                and chosen[3] > WIND_FALLBACK_AFTER_HOURS:
+            for cand in wind_chain[1:]:
+                if cand[3] is not None and cand[3] <= WIND_FALLBACK_AFTER_HOURS:
+                    chosen = cand
+                    wind_fallback_reason = "own_station_behind"
+                    break
+
+        if chosen:
+            hist_key, borrowed_from, hist, _age = chosen
+            wind_factor = score_wind(hist, None, borrowed_from, now)   # v19 (D182) — now passed for staleness check
+            obs_iso = hist.get("observed_at_utc")   # v18 (D173)
+            wind_headline = {
+                "dir": hist.get("current_wind_dir"),
+                "mph": hist.get("current_wind_mph"),
+                "mph_low": None,
+                "mph_high": None,
+                "source": wind_factor["source"],
+                "source_name": wind_factor.get("source_name"),
+                "observed_at_utc": obs_iso,   # v18 (D173)
+                "age_hours": (
+                    round((now - datetime.fromisoformat(obs_iso)).total_seconds() / 3600.0, 1)
+                    if obs_iso else None
+                ),   # v18 (D173)
+                "wind_model": WIND_MODEL_VERSION,   # v25 (D301)
+            }
+            wind_hist_key = hist_key
         else:
             wind_factor = score_wind(None, forecast, None)
             if wind_factor:
@@ -3672,6 +3877,28 @@ def build_piers(output):
                 "wind": wind_headline,
                 "wind_station_label": wind_station_label,
                 "wind_distance_mi": wind_distance_mi,
+                # v31 (D471). NEW, entirely additive - no existing key
+                # changes meaning, so the PWA and the Carrd boxes keep
+                # working untouched until they choose to read this.
+                #
+                # WHY IT EXISTS: before v31, when a pier borrowed wind,
+                # the pier's OWN station vanished from the output
+                # completely - the only station named was whichever one
+                # supplied the number. A page could therefore say
+                # "Manitowoc Airport" with no way to also say what the
+                # pier's own instrument was doing. Disclosing a borrow
+                # requires both halves. Eight Carrd boxes and nine app
+                # files would otherwise each have to work this out for
+                # themselves, which is nine chances to disagree.
+                "wind_provenance": _wind_provenance_block(
+                    supplying_key=wind_hist_key,
+                    supplying_label=wind_station_label,
+                    supplying_distance_mi=wind_distance_mi,
+                    headline=wind_headline,
+                    primary_key=wind_primary_key,
+                    histories=histories,
+                    reason=wind_fallback_reason,
+                    now=now),
                 # v17 (D144). Flat keys, matching the existing
                 # wind_station_label / wind_distance_mi pattern,
                 # rather than reaching inside the nested "wind" dict
