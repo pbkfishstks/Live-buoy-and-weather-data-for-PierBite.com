@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-10-04T21:03:07.132952+00:00",
+  "generated_at_utc": "2026-10-04T21:05:10.817640+00:00",
   "stations": {
     "tr1": {
       "available": true,
@@ -369,9 +369,9 @@
   "station_history": {
     "mtw": {
       "available": true,
-      "observed_at_utc": "2026-10-04T20:50:00+00:00",
-      "current_wind_dir": "NW",
-      "current_wind_mph": 11.5,
+      "observed_at_utc": "2026-10-04T20:55:00+00:00",
+      "current_wind_dir": "WNW",
+      "current_wind_mph": 13.8,
       "actual_hours_covered": 73,
       "hourly": [
         {
@@ -736,8 +736,8 @@
         },
         {
           "hours_ago": 0,
-          "dir": "NW",
-          "mph": 11.5
+          "dir": "WNW",
+          "mph": 13.8
         }
       ],
       "label": "Manitowoc Airport",
@@ -1035,8 +1035,8 @@
     },
     "KSBM": {
       "available": true,
-      "observed_at_utc": "2026-10-04T20:50:00+00:00",
-      "current_wind_dir": "WNW",
+      "observed_at_utc": "2026-10-04T20:55:00+00:00",
+      "current_wind_dir": "W",
       "current_wind_mph": 11.5,
       "actual_hours_covered": 73,
       "hourly": [
@@ -1402,7 +1402,7 @@
         },
         {
           "hours_ago": 0,
-          "dir": "WNW",
+          "dir": "W",
           "mph": 11.5
         }
       ],
@@ -1784,9 +1784,9 @@
     },
     "KSUE": {
       "available": true,
-      "observed_at_utc": "2026-10-04T20:50:00+00:00",
+      "observed_at_utc": "2026-10-04T20:55:00+00:00",
       "current_wind_dir": "WNW",
-      "current_wind_mph": 13.8,
+      "current_wind_mph": 11.5,
       "actual_hours_covered": 71,
       "hourly": [
         {
@@ -1832,7 +1832,7 @@
         {
           "hours_ago": 63,
           "dir": "N",
-          "mph": 13.8
+          "mph": 12.7
         },
         {
           "hours_ago": 62,
@@ -2147,7 +2147,7 @@
         {
           "hours_ago": 0,
           "dir": "WNW",
-          "mph": 13.8
+          "mph": 11.5
         }
       ],
       "label": "Door County Cherryland Airport, Sturgeon Bay (nearest continuously-reporting wind station)",
@@ -2309,7 +2309,7 @@
       "factors": [
         {
           "label": "Wind / Upwelling",
-          "score": 66,
+          "score": 67,
           "weight": 30,
           "source": "ESTIMATED",
           "source_name": "Manitowoc Airport",
@@ -2320,8 +2320,8 @@
             "ends_hours_ago": 0,
             "calm_hours": 12,
             "calm_share_pct": 16.4,
-            "avg_component": 0.429,
-            "recent_component": 0.586,
+            "avg_component": 0.437,
+            "recent_component": 0.628,
             "onshore_shift": false,
             "top_dirs": [
               "NW",
@@ -2389,13 +2389,13 @@
         "water_change_24h_f": null,
         "water_change_72h_f": -2.0,
         "wind": {
-          "dir": "NW",
-          "mph": 11.5,
+          "dir": "WNW",
+          "mph": 13.8,
           "mph_low": null,
           "mph_high": null,
           "source": "ESTIMATED",
           "source_name": "Manitowoc Airport",
-          "observed_at_utc": "2026-10-04T20:50:00+00:00",
+          "observed_at_utc": "2026-10-04T20:55:00+00:00",
           "age_hours": 0.2,
           "wind_model": "upwelling_v2"
         },
@@ -2432,7 +2432,7 @@
     },
     "manitowoc": {
       "name": "Manitowoc",
-      "score": 75,
+      "score": 76,
       "band": {
         "label": "Good",
         "tone": "good"
@@ -2448,7 +2448,7 @@
       "factors": [
         {
           "label": "Wind / Upwelling",
-          "score": 66,
+          "score": 67,
           "weight": 30,
           "source": "LIVE",
           "source_name": null,
@@ -2459,8 +2459,8 @@
             "ends_hours_ago": 0,
             "calm_hours": 12,
             "calm_share_pct": 16.4,
-            "avg_component": 0.429,
-            "recent_component": 0.586,
+            "avg_component": 0.437,
+            "recent_component": 0.628,
             "onshore_shift": false,
             "top_dirs": [
               "NW",
@@ -2528,13 +2528,13 @@
         "water_change_24h_f": null,
         "water_change_72h_f": -3.2,
         "wind": {
-          "dir": "NW",
-          "mph": 11.5,
+          "dir": "WNW",
+          "mph": 13.8,
           "mph_low": null,
           "mph_high": null,
           "source": "LIVE",
           "source_name": null,
-          "observed_at_utc": "2026-10-04T20:50:00+00:00",
+          "observed_at_utc": "2026-10-04T20:55:00+00:00",
           "age_hours": 0.2,
           "wind_model": "upwelling_v2"
         },
@@ -2550,7 +2550,7 @@
           "own_station_key": "mtw",
           "own_station_label": "Manitowoc Airport",
           "own_station_available": true,
-          "own_station_observed_at_utc": "2026-10-04T20:50:00+00:00",
+          "own_station_observed_at_utc": "2026-10-04T20:55:00+00:00",
           "own_station_age_hours": 0.2,
           "own_station_is_supplying": true,
           "fallback_after_hours": 12
@@ -2587,7 +2587,7 @@
       "factors": [
         {
           "label": "Wind / Upwelling",
-          "score": 60,
+          "score": 61,
           "weight": 30,
           "source": "LIVE",
           "source_name": null,
@@ -2598,8 +2598,8 @@
             "ends_hours_ago": 0,
             "calm_hours": 14,
             "calm_share_pct": 19.2,
-            "avg_component": 0.273,
-            "recent_component": 0.522,
+            "avg_component": 0.279,
+            "recent_component": 0.557,
             "onshore_shift": false,
             "top_dirs": [
               "NNW",
@@ -2667,13 +2667,13 @@
         "water_change_24h_f": null,
         "water_change_72h_f": -0.5,
         "wind": {
-          "dir": "WNW",
+          "dir": "W",
           "mph": 11.5,
           "mph_low": null,
           "mph_high": null,
           "source": "LIVE",
           "source_name": null,
-          "observed_at_utc": "2026-10-04T20:50:00+00:00",
+          "observed_at_utc": "2026-10-04T20:55:00+00:00",
           "age_hours": 0.2,
           "wind_model": "upwelling_v2"
         },
@@ -2689,7 +2689,7 @@
           "own_station_key": "KSBM",
           "own_station_label": "Sheboygan County Memorial Airport (nearest continuously-reporting wind station)",
           "own_station_available": true,
-          "own_station_observed_at_utc": "2026-10-04T20:50:00+00:00",
+          "own_station_observed_at_utc": "2026-10-04T20:55:00+00:00",
           "own_station_age_hours": 0.2,
           "own_station_is_supplying": true,
           "fallback_after_hours": 12
@@ -3087,12 +3087,12 @@
         "water_change_72h_f": -1.9,
         "wind": {
           "dir": "WNW",
-          "mph": 13.8,
+          "mph": 11.5,
           "mph_low": null,
           "mph_high": null,
           "source": "LIVE",
           "source_name": null,
-          "observed_at_utc": "2026-10-04T20:50:00+00:00",
+          "observed_at_utc": "2026-10-04T20:55:00+00:00",
           "age_hours": 0.2,
           "wind_model": "upwelling_v2"
         },
@@ -3147,7 +3147,7 @@
       "factors": [
         {
           "label": "Wind / Upwelling",
-          "score": 60,
+          "score": 61,
           "weight": 30,
           "source": "ESTIMATED",
           "source_name": "Sheboygan Airport",
@@ -3158,8 +3158,8 @@
             "ends_hours_ago": 0,
             "calm_hours": 14,
             "calm_share_pct": 19.2,
-            "avg_component": 0.273,
-            "recent_component": 0.522,
+            "avg_component": 0.279,
+            "recent_component": 0.557,
             "onshore_shift": false,
             "top_dirs": [
               "NNW",
@@ -3227,13 +3227,13 @@
         "water_change_24h_f": null,
         "water_change_72h_f": -1.4,
         "wind": {
-          "dir": "WNW",
+          "dir": "W",
           "mph": 11.5,
           "mph_low": null,
           "mph_high": null,
           "source": "ESTIMATED",
           "source_name": "Sheboygan Airport",
-          "observed_at_utc": "2026-10-04T20:50:00+00:00",
+          "observed_at_utc": "2026-10-04T20:55:00+00:00",
           "age_hours": 0.2,
           "wind_model": "upwelling_v2"
         },
@@ -3270,7 +3270,8 @@
     }
   },
   "hot_piers_today": [
-    "algoma"
+    "algoma",
+    "manitowoc"
   ],
   "open_lake_context": {
     "available": true,
